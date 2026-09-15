@@ -16,3 +16,5 @@ Flask app for building and previewing template-based questions.
 4. `flask run`
 
 The `.flaskenv` file sets `FLASK_APP=ctrl.py`. If you don’t use `flask run`, you can ignore it.
+
+Jackson Reed
