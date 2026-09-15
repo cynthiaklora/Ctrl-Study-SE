@@ -22,3 +22,5 @@ Software Engineering Group Members:
 Jackson Reed
 
 Cynthia Hawkersmith
+
+Belden Love
