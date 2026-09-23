@@ -2,10 +2,15 @@ from flask_wtf import FlaskForm
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import CppLexer, PythonLexer, MarkdownLexer
-from wtforms import Field, RadioField, SubmitField, SelectMultipleField, TextAreaField, FieldList, FormField, validators, widgets, StringField
+from wtforms import Field, RadioField, SubmitField, SelectMultipleField, TextAreaField, FieldList, FormField, validators, widgets, StringField, PasswordField
 from wtforms.fields import IntegerField
-from wtforms.validators import DataRequired, Optional, InputRequired
+from wtforms.validators import DataRequired, Optional, InputRequired, Length
 from typing import TypeVar, Generic
+
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
+    submit = SubmitField('Login')
 
 class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
