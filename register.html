@@ -1,0 +1,34 @@
+<!-- This is the register page. -->
+
+{% extends "base.html" %}
+
+{% block body %}
+{% if error %}
+<p>{{ error }}</p>
+{% endif %}
+    <div style="display: flex; flex-direction: column; align-items: center; padding-top: 5vh;">
+    <h1 style="text-align: center; font-size: 50px; font-family: monospace; margin-bottom: 10px;">Register</h1>
+    <form method="POST" action="">
+        {{ form.hidden_tag() }}
+        <div class="clear_bordering" style="padding: 15px 30px;">
+            <div style="margin-bottom: 10px;">
+                <h3 style="font-size: 23px;">{{ form.username.label }}</h3>
+                {{ form.username() }}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <h3 style="font-size: 23px;">{{ form.password.label }}</h3>
+                {{ form.password() }}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <h3 style="font-size: 23px;">Confirm Password</h3>
+                {{ form.confirmPassword() }}
+            </div>
+        </div>
+        <br>
+        <hr>
+        <div style="text-align: center; margin: 20px;">
+            {{ form.submit(class="btn") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
