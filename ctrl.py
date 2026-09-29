@@ -12,15 +12,16 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
 
 from datetime import timedelta
 from flask_session import Session
 
 from flask import redirect, url_for
-from flask_login import LoginManager, login_required, login_user, current_user, logout_user
+from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 
 import supabase_client
+from supabase_client import ctrlDB
 import template_builder
 
 from urllib.parse import urlencode
@@ -63,19 +64,29 @@ login_manager = LoginManager()
 login_manager.login_view = "login"
 login_manager.init_app(app)
 
-@login_manager.user_loader
-def load_user(user_id: str):
-    try:
-        return supabase_client.LoadUser(user_id)
-    except Exception:
-        return None
-
 # proper home page
 @app.route("/", methods=["GET"])
 @app.route("/index", methods=["GET"])
 def home():
-    return render_template("index.html", title="Ctrl-Study: Home")
+    userName = getattr(current_user, "username", "")
+    return render_template("index.html", title="Ctrl-Study: Home", username=userName)
 
+class User(UserMixin):
+    def __init__(self, id, username, role=None):
+        self.id = id
+        self.username = username
+        self.role = role
+
+    def get_id(self):
+        return self.id
+
+@login_manager.user_loader
+def load_user(user_id):
+    result = ctrlDB.table("users").select("id, username, role").eq("id", user_id).execute()
+    if not result.data:
+        return None
+    row = result.data[0]
+    return User(id=row["id"], username=row["username"], role=row["role"])
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -88,17 +99,79 @@ def login():
     if request.method == "POST" and form.validate_on_submit():
         username = str(form.username.data or "").strip()
         password = str(form.password.data or "")
+
+        account = ctrlDB.table("users").select("id, username, role").eq("username", username).execute()
+        
+        if not account.data:
+            error = "Invalid username."
+            return render_template("Login.html", title="Ctrl-Study: Login", form=form, error=error)
+        
+        supabaseEmail = f"{username}@users.table"
+
         try:
-            user = supabase_client.AuthenticateUser(username, password)
+            user = ctrlDB.auth.sign_in_with_password({
+                "email": supabaseEmail,
+                "password": password
+            }).user
         except Exception:
             user = None
 
         if user is not None:
-            login_user(user)
-            return redirect(url_for("templateIndex"))
+            role=account.data[0]["role"]
+            login_user(User(id=user.id, username=username, role=role))
+            if (role == "admin"):
+                return redirect(url_for("templateIndex"))
+            else:
+                return redirect(url_for("home"))
         error = "Invalid username or password."
 
     return render_template("Login.html", title="Ctrl-Study: Login", form=form, error=error)
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    form = RegisterForm()
+    error = None
+
+    if request.method == "POST" and form.validate_on_submit():
+        username = str(form.username.data or "").strip()
+        password = str(form.password.data or "")
+        confirmPassword = str(form.confirmPassword.data or "")
+
+        existingUser = ctrlDB.table("users").select("id").eq("username", username).execute()
+        if existingUser.data:
+                error = "Username already exists."
+                return render_template("register.html", title="Register for an Account!", form=form, error=error)
+
+        if password != confirmPassword:
+            error = "Passwords do not match."
+            return render_template("register.html", title="Register for an Account!", form=form, error=error)
+
+        # Fake email is used because supabase's auth system works on emails, so this is an easy work around to use usernames
+        supabaseEmail = f"{username}@users.table"
+        try:
+            # Makes use of supabases auth system with bcrypt. Password hashes are stored in the auth schema, users table in supabase.
+            result = ctrlDB.auth.sign_up({
+                "email": supabaseEmail,
+                "password": password
+            })
+            user = result.user
+        except Exception:
+            user = None
+            error = "Registration failed. Please try again."
+    
+        if user is not None:
+            try:
+                ctrlDB.table("users").insert({
+                    "id": user.id,
+                    "username": username
+                }).execute()
+                return redirect(url_for("login"))
+            except:
+                error = "Registration failed, please try again."
+                return render_template("register.html", title="Register for an Account!", form=form, error=error)
+        error = "Invalid registration."
+
+    return render_template("register.html", title="Register for an Account!", form=form, error=error)
 
 @app.route("/logout")
 @login_required
