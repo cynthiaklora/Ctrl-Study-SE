@@ -229,7 +229,7 @@ def quiz():
     types = [
         "multiple_choice",
         "multiple_select",
-        #"short_answer", until we have good ones
+        "short_answer", 
         "true_false"
     ]
     languages = ["Python", "C++"]
@@ -303,3 +303,5 @@ def quiz():
 # Starts local development server when run directly
 if __name__ == "__main__":
     app.run(debug=True)
+
+

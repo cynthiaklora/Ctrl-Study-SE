@@ -20,6 +20,25 @@
         <div style="margin-bottom: 15px; padding-top: 5px; top:0; margin: 8px; margin-top: 0;">
             <strong>Ctrl Study</strong> |
             <a href="/" class="btn">Home</a>
+            <div class = "theme-dropdown" >
+                 <button 
+                type = "button"
+                id = "mode-toggle"
+                aria-expanded = "false"
+                aria-controls = "theme-picker"
+                >Theme
+            </button>
+            <span id = "theme-picker" hidden>
+                <label for = "theme-select" > Choose theme:</label>
+                <select id = "theme-select">
+                    <option value = "system">System default</option>
+                    <option value = "light">Light</option>
+                    <option value = "dark" >Dark</option>
+                    <option value = "blue" >Blue</option>
+                    <option value = "red" >Red</option>
+                </select>
+            </span>
+            </div>
             {% if current_user.is_authenticated %}
             <a href="/logout" class="btn">Logout</a>
             {% endif %}
@@ -33,6 +52,21 @@
         {% block body %}
         {% endblock %}
     </div>
-</body>
+    <script>
+        const button = document.getElementById("mode-toggle");
+        const picker = document.getElementById("theme-picker");
+        const select = document.getElementById("theme-select");
 
+        // updates the toggle when clicked
+        button.onclick = () => {
+            picker.hidden = !picker.hidden;
+            button.setAttribute("aria-expanded", String(!picker.hidden))
+        };
+
+        // this applies the selected theme to <html>
+        select.onchange = () => {
+            document.documentElement.dataset.theme = select.value;
+        };
+    </script>
+</body>
 </html>

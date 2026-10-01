@@ -8,13 +8,18 @@ import random
 import bcrypt
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from pathlib import Path
 from typing import Any
 from flask_login import UserMixin
 
-# load variables from the .flaskenv file
+# Load configuration before creating the client, including when run with python ctrl.py.
+# this was changed for python 3
+#project_dir = Path(__file__).resolve().parent
+#load_dotenv(project_dir / ".env")
+#load_dotenv(project_dir / ".flaskenv")
+
 load_dotenv()
 
-# load the supabase url and key from the .flaskenv file
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 

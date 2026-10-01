@@ -7,25 +7,56 @@
     /* we support light mode, technically, but the colors are not relative as-is
     it is better to support what we have all been using apparently.
     color-scheme: light dark;*/
+    color-scheme: light dark blue red;
+}
+:root[data-theme = "light"] {
+    color-scheme: light
+}
+:root[data-theme = "dark"] {
+    color-scheme: dark
+}
+:root[data-theme = "light"] body {
+    background-color: #cfcdcd;
+}
+
+:root[data-theme = "dark"] body {
+    background-color: #2e2e2e;
+}
+/* Blue theme color with a dark browser control*/
+:root[data-theme = "blue"] {
+    color-scheme: dark
+}
+:root[data-theme = "blue"] body {
+    background-color: #1f2f8c;
+}
+
+/* Red theme color, with a dark browser controls */
+:root[data-theme = "red"]{
     color-scheme: dark;
 }
+:root[data-theme = "red"] body {
+    background-color: #6f1111;
+}
 
-/* light mode */
-/*@media (prefers-color-scheme: light) {
+/* This is the system prefereed dark mode color */
+@media (prefers-color-scheme: light) {
     body {
-        background-color: #d1d1d1
-    }
-}*/
-
-/* dark mode */
-@media (prefers-color-scheme: dark) {
-    body {
-        background-color: #2e2e2e
+        background-color: #cfcdcd;
     }
 }
 
-body {
-    background-color: #2e2e2e
+/* This is the system prefereed dark mode color */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #2e2e2e;
+    }
+}
+
+/* this is the default colorscheme */
+@media (prefers-color-scheme:default){
+    body {
+        background-color: #2e2e2e;
+    }
 }
 
 /* responsiveness */
@@ -460,4 +491,34 @@ textarea.answer {
 
 #submit-btn {
     transition: opacity 0.1s;
+}
+
+/* theme- select button style */
+ #theme-select {
+    padding: 8px;
+    border: 1px solid #627277;
+    border-radius: 6px;
+    background-color: Canvas;
+    color:CanvasText;
+    font-size: 15px;
+    cursor: pointer;
+}
+/* keep theme Beside the Home buttoon*/
+.theme-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Position the dropdown below the theme button*/
+#theme-picker {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10;
+    padding: 12px;
+    background-color: Canvas;
+    color:CanvasText;
+    border: 1px solid #627277;
+    border-radius: 6px;
+    white-space: nowrap;
 }
