@@ -19,6 +19,19 @@
     background-color: #cfcdcd;
 }
 
+/*overrides the .slight_clear bodering, so in light mode 
+   incorrect feedback background is light instead of dark*/
+:root[data-theme="light"] .slight_clear_bordering {
+    background-color: #cfcdcd;
+    color: #222222;
+    border-color: #cfcdcd;
+}
+
+/**/
+:root[data-theme = "light"] .share-quiz-link {
+    color: #222222;
+}
+
 :root[data-theme = "dark"] body {
     background-color: #2e2e2e;
 }

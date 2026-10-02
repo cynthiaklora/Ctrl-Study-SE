@@ -10,6 +10,10 @@
     {% else %}
     <title>Ctrl Study</title>
     {% endif %}
+    <script>
+        const savedTheme = localStorage.getItem("theme") ||"system";
+        document.documentElement.dataset.theme = savedTheme;
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     {% block head %}
     {% endblock %}
@@ -56,6 +60,7 @@
         const button = document.getElementById("mode-toggle");
         const picker = document.getElementById("theme-picker");
         const select = document.getElementById("theme-select");
+        select.value = document.documentElement.dataset.theme;
 
         // updates the toggle when clicked
         button.onclick = () => {
@@ -66,6 +71,7 @@
         // this applies the selected theme to <html>
         select.onchange = () => {
             document.documentElement.dataset.theme = select.value;
+            localStorage.setItem("theme", select.value);
         };
     </script>
 </body>
