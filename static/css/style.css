@@ -27,7 +27,7 @@
     border-color: #cfcdcd;
 }
 
-/**/
+/*makes link text black in light mode*/
 :root[data-theme = "light"] .share-quiz-link {
     color: #222222;
 }

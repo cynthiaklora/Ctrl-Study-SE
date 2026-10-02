@@ -68,7 +68,7 @@
             button.setAttribute("aria-expanded", String(!picker.hidden))
         };
 
-        // this applies the selected theme to <html>
+        // this applies the selected theme to <html> 
         select.onchange = () => {
             document.documentElement.dataset.theme = select.value;
             localStorage.setItem("theme", select.value);
