@@ -12,9 +12,10 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm, CustomQuizForm
 
 from datetime import timedelta
+from functools import wraps
 from flask_session import Session
 
 from flask import redirect, url_for
@@ -79,6 +80,17 @@ class User(UserMixin):
 
     def get_id(self):
         return self.id
+
+# Restricts a route to logged-in admins (non-admins are sent home, anonymous users to the login page)
+def adminRequired(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return login_manager.unauthorized()
+        if getattr(current_user, "role", None) != "admin":
+            return redirect(url_for("home"))
+        return view(*args, **kwargs)
+    return wrapped
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -218,7 +230,10 @@ def quizComplete():
             form.answer.data = data
         forms.append(form)
 
-    url = "/quiz?" + urlencode(session["quizParameters"], doseq=True)
+    if session.get("customQuiz"):
+        url = url_for("customQuiz") + "?" + urlencode(session["quizParameters"], doseq=True)
+    else:
+        url = "/quiz?" + urlencode(session["quizParameters"], doseq=True)
 
     return render_template (
         "QuizComplete.html",
@@ -307,7 +322,7 @@ def quiz():
     languages = ["Python", "C++"]
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
-    for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness", "seed", "quizParameters"]:
+    for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness", "seed", "quizParameters", "customQuiz"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
@@ -371,6 +386,51 @@ def quiz():
             }
         return redirect(url_for("question"))
     return render_template("QuizSetup.html", tags=tags, form=form)
+
+# ADMIN TESTING: hand-pick specific questions from the pool and take them as a quiz.
+# Lets admins try out newly added questions before students see them.
+QUIZ_SESSION_KEYS = ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness", "seed", "quizParameters", "customQuiz"]
+
+def beginCustomQuiz(ids: list[int], seed) -> bool:
+    for key in QUIZ_SESSION_KEYS:
+        session.pop(key, None)
+    questions = QuestionFetch.getQuestionsByIds(ids, seed)
+    if not questions:
+        return False
+    session["quizQuestions"] = questions
+    session["quizParameters"] = {"ids": ids, "seed": seed}
+    session["customQuiz"] = True
+    session["seed"] = seed
+    return True
+
+@app.route("/quiz/custom", methods=["GET", "POST"])
+@adminRequired
+def customQuiz():
+    pool = supabase_client.FetchQuestionPool()
+    form = CustomQuizForm(questions=[(str(q["id"]), q["title"]) for q in pool])
+    error = None
+
+    # Retake / shared link: /quiz/custom?ids=3&ids=7&seed=123 starts straight away
+    argIds = []
+    for raw in request.args.getlist("ids"):
+        try:
+            argIds.append(int(raw))
+        except ValueError:
+            pass
+    if argIds:
+        seed = request.args.get("seed") or makeSeed()
+        if beginCustomQuiz(argIds, seed):
+            return redirect(url_for("question"))
+        error = "None of those questions exist anymore."
+
+    elif form.validate_on_submit():
+        ids = [int(i) for i in form.questionIds.data]
+        seed = form.seed.data.strip() if form.seed.data and form.seed.data.strip() else makeSeed()
+        if beginCustomQuiz(ids, seed):
+            return redirect(url_for("question"))
+        error = "Could not load the selected questions."
+
+    return render_template("CustomQuiz.html", title="Ctrl-Study: Test Questions", form=form, pool=pool, error=error)
 
 # Starts local development server when run directly
 if __name__ == "__main__":
