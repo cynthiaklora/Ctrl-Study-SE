@@ -72,16 +72,23 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
 
         return questions
 
-    def shuffleAnswers(answers: list[tuple[str, str]], seed: int) -> Any:
-        opt = answers
-        random.seed(seed)
-        random.shuffle(opt)
-        return cast(Any, opt)
-
     q = getDbQuestions()
     if q is None:
         return None
 
+    return _buildQuestions(q, seed)
+
+
+def shuffleAnswers(answers: list[tuple[str, str]], seed: int) -> Any:
+    opt = answers
+    random.seed(seed)
+    random.shuffle(opt)
+    return cast(Any, opt)
+
+
+# Turns raw question rows (type/template/prompt/feedback/language/title) into generated QuestionContainers.
+# Shared by the random quiz and the admin hand-picked quiz so both generate questions the same way.
+def _buildQuestions(q: list[dict[str, str]], seed: int) -> list[QuestionContainer]:
     questions = []
 
     random.seed(seed)
@@ -106,6 +113,26 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
         ))
 
     return questions
+
+
+# ADMIN TESTING: builds a quiz from exactly the given question ids, in the given order (no random picking).
+def getQuestionsByIds(ids: list[int], seed: int) -> list[QuestionContainer] | None:
+    rows = supabase_client.FetchQuestionsByIds(ids)
+    if not rows:
+        return None
+
+    q = [
+        {
+            "type": c["question_type"],
+            "template": c["prompt_template"],
+            "prompt": c["question_template"],
+            "feedback": c["feedback_template"],
+            "language": c["language"],
+            "title": c["title"],
+        }
+        for c in rows
+    ]
+    return _buildQuestions(q, seed)
 
 def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> QuestionForm:
 
