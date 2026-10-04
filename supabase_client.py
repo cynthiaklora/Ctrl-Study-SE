@@ -276,6 +276,44 @@ def FetchFilteredQuestions(tags: list[str], questionTypes: list[str], languages:
     return []
 
 
+# ================ FetchQuestionPool: FETCH EVERY QUESTION WITH ITS DETAILS FOR THE ADMIN TEST PICKER ================
+# Newest questions (highest id) come first so admins can find what they just added.
+# Each entry: {"id", "title", "question_type", "language", "tags": [tag names]}
+def FetchQuestionPool() -> list[dict[str, Any]]:
+    if not url or not key:
+        raise RuntimeError("Supabase credentials are missing.")
+
+    response = retryQuery(
+        lambda: ctrlDB.table("questions")
+        .select("id,title,question_type,language,question_tags(tags(name))")
+        .order("id", desc=True)
+        .execute()
+    )
+    fetchError = getattr(response, "error", None)
+    if fetchError:
+        raise RuntimeError(f"Supabase fetch failed: {fetchError}")
+
+    data = getattr(response, "data", None)
+    if not isinstance(data, list):
+        return []
+
+    pool = []
+    for row in data:
+        tagNames = sorted({
+            link["tags"]["name"]
+            for link in (row.get("question_tags") or [])
+            if link.get("tags")
+        })
+        pool.append({
+            "id": row["id"],
+            "title": row.get("title") or f"Question {row['id']}",
+            "question_type": row.get("question_type", ""),
+            "language": row.get("language", ""),
+            "tags": tagNames,
+        })
+    return pool
+
+
 # ================ FetchAllTags: FETCH ALL TAGS FROM "tags" TABLE ================
 # When you need to list all tags
 def FetchAllTags() -> list[dict[str, Any]]:
