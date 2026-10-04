@@ -1,0 +1,86 @@
+<!-- Admin-only page: hand-pick specific questions from the pool and start a test with them. -->
+
+{% extends "base.html" %} {% block body %}
+<div style="margin: 15px">
+    <h1 style="text-align: center; font-size: 50px; font-family: monospace; margin-bottom: 10px;">Test Questions</h1>
+    <p style="text-align: center;">Pick the exact questions you want on the test, then start it. Newest questions are listed first.</p>
+
+    {% if error %}<p style="color: red; text-align: center;">{{ error }}</p>{% endif %}
+    {% for e in form.questionIds.errors %}<p style="color: red; text-align: center;">{{ e }}</p>{% endfor %}
+
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="clear_bordering">
+            <div style="margin-bottom: 12px;">
+                <input type="search" id="filter" placeholder="Filter by title, tag, type, language or id" size="50">
+                <button type="button" id="select-visible">Select all shown</button>
+                <button type="button" id="clear-all">Clear all</button>
+                <span id="count" style="margin-left: 10px;">0 selected</span>
+            </div>
+
+            <div style="max-height: 55vh; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr><th></th><th>ID</th><th>Title</th><th>Type</th><th>Language</th><th>Tags</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for q in pool %}
+                        <tr class="q-row" data-search="{{ (q.id|string ~ ' ' ~ q.title ~ ' ' ~ q.question_type ~ ' ' ~ q.language ~ ' ' ~ q.tags|join(' '))|lower }}">
+                            <td><input type="checkbox" name="questionIds" value="{{ q.id }}" id="q{{ q.id }}"></td>
+                            <td><label for="q{{ q.id }}">{{ q.id }}</label></td>
+                            <td><label for="q{{ q.id }}">{{ q.title }}</label></td>
+                            <td>{{ q.question_type }}</td>
+                            <td>{{ q.language }}</td>
+                            <td>{{ q.tags|join(", ") }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6">The question pool is empty.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="container h-aligning" style="margin-top: 25px">
+            <div class="column">
+                <h3 style="font-size: 23px;">Seed (optional)</h3>
+                {{ form.seed }}
+            </div>
+        </div>
+        <hr>
+        <div style="text-align: center; margin: 20px;">
+            {{ form.submit(class="btn", id="start-btn") }}
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const rows = Array.from(document.querySelectorAll(".q-row"));
+        const boxes = () => rows.map(r => r.querySelector("input[type=checkbox]"));
+        const startBtn = document.getElementById("start-btn");
+        const count = document.getElementById("count");
+
+        function refresh() {
+            const n = boxes().filter(b => b.checked).length;
+            count.textContent = n + " selected";
+            startBtn.disabled = n === 0;
+        }
+
+        document.getElementById("filter").addEventListener("input", function (e) {
+            const term = e.target.value.trim().toLowerCase();
+            rows.forEach(r => { r.style.display = r.dataset.search.includes(term) ? "" : "none"; });
+        });
+        document.getElementById("select-visible").addEventListener("click", function () {
+            rows.forEach(r => { if (r.style.display !== "none") r.querySelector("input").checked = true; });
+            refresh();
+        });
+        document.getElementById("clear-all").addEventListener("click", function () {
+            boxes().forEach(b => { b.checked = false; });
+            refresh();
+        });
+        rows.forEach(r => r.querySelector("input").addEventListener("change", refresh));
+        refresh();
+    });
+</script>
+{% endblock %}
