@@ -12,6 +12,9 @@
   <div class="h-aligning" style="margin-top: 20px;">
     <a href="/template" class="big-btn">Template Builder</a><br>
     <a href="/quiz" class="big-btn">Start Quiz</a><br>
+    {% if current_user.is_authenticated and current_user.role == "admin" %}
+    <a href="/quiz/custom" class="big-btn">Test Questions</a><br>
+    {% endif %}
     <a href="/credits" class="big-btn">Credits!</a>
   </div>
 
