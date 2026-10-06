@@ -12,6 +12,12 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
     submit = SubmitField('Login')
 
+class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
+    confirmPassword = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
+    submit = SubmitField("Register")
+
 class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
     option_widget = widgets.CheckboxInput()
