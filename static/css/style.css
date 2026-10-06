@@ -51,10 +51,18 @@
     background-color: #6f1111;
 }
 
-/* This is the system prefereed dark mode color */
+/* This is the system prefereed light mode color */
 @media (prefers-color-scheme: light) {
     body {
         background-color: #cfcdcd;
+    }
+}
+/* updates system light mode question feedbackbackground*/
+@media (prefers-color-scheme: light) {
+    :root[data-theme="system"] .slight_clear_bordering {
+        background-color: #cfcdcd;
+        color: #222222;
+        border-color: #cfcdcd;
     }
 }
 
