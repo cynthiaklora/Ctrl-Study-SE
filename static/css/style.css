@@ -7,7 +7,7 @@
     /* we support light mode, technically, but the colors are not relative as-is
     it is better to support what we have all been using apparently.
     color-scheme: light dark;*/
-    color-scheme: light dark blue red;
+    color-scheme: light dark ;
 }
 :root[data-theme = "light"] {
     color-scheme: light
@@ -16,15 +16,15 @@
     color-scheme: dark
 }
 :root[data-theme = "light"] body {
-    background-color: #cfcdcd;
+    background-color: #e6e5e5;
 }
 
 /*overrides the .slight_clear bodering, so in light mode 
    incorrect feedback background is light instead of dark*/
 :root[data-theme="light"] .slight_clear_bordering {
-    background-color: #cfcdcd;
+    background-color: #e6e5e5;
     color: #222222;
-    border-color: #cfcdcd;
+    border-color: #e6e5e5;
 }
 
 /*makes link text black in light mode*/
@@ -54,19 +54,19 @@
 /* This is the system prefereed light mode color */
 @media (prefers-color-scheme: light) {
     body {
-        background-color: #cfcdcd;
+        background-color: #e6e5e5;
     }
 }
 /* updates system light mode question feedbackbackground*/
 @media (prefers-color-scheme: light) {
     :root[data-theme="system"] .slight_clear_bordering {
-        background-color: #cfcdcd;
+        background-color: #e6e5e5;
         color: #222222;
-        border-color: #cfcdcd;
+        border-color: #e6e5e5;
     }
 }
 
-/* This is the system prefereed dark mode color */
+/* This is the system prefered dark mode color */
 @media (prefers-color-scheme: dark) {
     body {
         background-color: #2e2e2e;
