@@ -1,4 +1,4 @@
-﻿# Purpose:
+# Purpose:
 # This file is the Flask entrypoint for the template-based question generator app
 
 # Function:
@@ -12,8 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm
-from Frontend.LoginForm import LoginForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm
 
 from datetime import timedelta
 from flask_session import Session
