@@ -10,6 +10,8 @@
     {% else %}
     <title>Ctrl Study</title>
     {% endif %}
+    <!-- reads theme from local storage and applys when the page loads
+     uses system if nothing was saved-->
     <script>
         const savedTheme = localStorage.getItem("theme") ||"system";
         document.documentElement.dataset.theme = savedTheme;
@@ -22,6 +24,7 @@
 <body>
     <div class="headerContainer">
         <div style="margin-bottom: 15px; padding-top: 5px; top:0; margin: 8px; margin-top: 0;">
+            <!-- add the theme button beside the home button-->
             <strong>Ctrl Study</strong> |
             <a href="/" class="btn">Home</a>
             <div class = "theme-dropdown" >
@@ -31,6 +34,7 @@
                 aria-expanded = "false"
                 aria-controls = "theme-picker"
                 >Theme
+                <!-- this is where the theme dropdown with options is created-->
             </button>
             <span id = "theme-picker" hidden>
                 <label for = "theme-select" > Choose theme:</label>
@@ -56,6 +60,7 @@
         {% block body %}
         {% endblock %}
     </div>
+    <!--shows the theme button when its clicked-->
     <script>
         const button = document.getElementById("mode-toggle");
         const picker = document.getElementById("theme-picker");
