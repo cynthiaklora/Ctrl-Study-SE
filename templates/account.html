@@ -1,0 +1,38 @@
+{% extends "base.html" %} {% block body %}
+
+<p>These are your saved seeds and quizzes.</p>
+
+<h2>Saved Seeds</h2>
+{% for quiz in autoSaved %}
+    <p>Seed: {{ quiz.seed }} Created on: {{ quiz.created_at[:10] }} 
+    <a href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count, tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">
+    Retake</a></p>
+{% endfor %}
+
+<h2>Fully Saved Quizzes</h2>
+{% for quiz in manualSaved %}
+  <details>
+    <summary>
+      {{ quiz.created_at[:10] }} - {{ quiz.quiz_questions | selectattr("is_correct") | list | length }}
+      / {{ quiz.question_count }} correct
+    </summary>
+
+    <p>Seed: {{ quiz.seed }}</p>
+    <a href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count,
+                        tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">Retake</a>
+
+    {% for q in quiz.quiz_questions %}
+      <div>
+        <strong>{{ q.position + 1 }}.</strong> {{ q.question_text }}
+        <div>Your answer: {{ q.given_answers | join(", ") }}</div>
+        {% if not q.is_correct %}
+          <div>Correct: {{ q.correct_answers | join(", ") }}</div>
+          <div>{{ q.feedback }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </details>
+{% else %}
+  <p>No saved quizzes yet.</p>
+{% endfor %}
+{% endblock %}
