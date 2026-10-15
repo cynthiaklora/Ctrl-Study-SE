@@ -21,7 +21,7 @@ from flask import redirect, url_for
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 
 import supabase_client
-from supabase_client import ctrlDB
+from supabase_client import ctrlDB, makeOauthClient
 import template_builder
 
 from urllib.parse import urlencode
@@ -29,6 +29,7 @@ from urllib.parse import urlencode
 from Frontend.QuestionFetch import QuestionContainer, makeSeed
 
 import os
+from os import abort
 
 import shutil
 cache_path = "./flask_session_cache"
@@ -174,11 +175,83 @@ def register():
 
     return render_template("register.html", title="Register for an Account!", form=form, error=error)
 
+
+"""
+For the following OAuth stuff, you must use localhost:5000, and not 127.0.0.1
+because the site URL and callback are in that format, so the verifier code
+would be sent to the wrong location and never work.
+"""
+def uniqueUsername(base):
+    """
+    This is just for in the very rare case that someone has the same generated username as someone else
+    For example, if someone with user_name bob from github signs in, and then someone with 
+    full_name bob from google signs in, they would have the same generated username, so
+    this checks and corrects that issue.
+    """
+    base = "".join(c for c in base if c.isalnum() or c in "-_")[:30] or "user"
+    candidate, n = base, 0
+    while ctrlDB.table("users").select("id").eq("username", candidate).execute().data:
+        n += 1
+        candidate = f"{base}{n}"
+    return candidate
+
+def get_or_create_profile(user):
+    existing = ctrlDB.table("users").select("id, username, role").eq("id", user.id).execute()
+    if existing.data:
+        return existing.data[0]
+
+    meta = user.user_metadata or {}
+    base = (
+    meta.get("user_name") or meta.get("preferred_username") # Github oath returns
+    or meta.get("full_name") or meta.get("name") # Google oath returns
+    or (user.email or "").split("@")[0] # Final default
+    )
+    username = uniqueUsername(base)
+    ctrlDB.table("users").insert({"id": user.id, "username": username}).execute()
+    return {"id": user.id, "username": username, "role": None}
+
+@app.route("/auth/callback")
+def authCallback():
+    code = request.args.get("code")
+    if not code:  # user cancelled on provider, or Supabase returned an error
+        return redirect(url_for("login"))
+
+    callbackClient = makeOauthClient()
+    try:
+        user = callbackClient.auth.exchange_code_for_session({"auth_code": code}).user
+        profile = get_or_create_profile(user)
+    except Exception:
+        return redirect(url_for("login"))
+
+    login_user(User(id=profile["id"], username=profile["username"], role=profile["role"]))
+    session["userID"] = current_user.id
+
+    if profile["role"] == "admin":
+        return redirect(url_for("templateIndex"))
+    return redirect(url_for("home"))
+
+OAuthProviders = {"github", "google"}
+
+@app.route("/login/<provider>")
+def OAuthLogin(provider):
+    if provider not in OAuthProviders:
+        abort(404)
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    OAuthClient = makeOauthClient()
+    result = OAuthClient.auth.sign_in_with_oauth({
+        "provider": provider,
+        "options": {"redirect_to": url_for("authCallback", _external=True)}
+    })
+    return redirect(result.url)
+
 @app.route("/logout")
 @login_required
 def logout():
+    ctrlDB.auth.sign_out()
     logout_user()
-    session["userID"] = None
+    session.clear()
     return redirect(url_for("home"))
 
 @app.route("/account")
