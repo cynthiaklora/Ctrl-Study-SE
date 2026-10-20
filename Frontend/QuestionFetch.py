@@ -15,6 +15,13 @@ def makeSeed() -> int:
     aSeed = random.randrange(sys.maxsize)
     return aSeed
 
+def parseSeed(raw) -> int:
+    if raw is None or str(raw).strip() == "":
+        return makeSeed()
+    try:
+        return int(str(raw).strip())
+    except ValueError:
+        return makeSeed() # this just ignores any input if the above part fails, could make this return an error message if needed
 
 @dataclass
 class QuestionContainer:
