@@ -26,7 +26,7 @@ import template_builder
 
 from urllib.parse import urlencode
 
-from Frontend.QuestionFetch import QuestionContainer, makeSeed
+from Frontend.QuestionFetch import QuestionContainer, makeSeed, parseSeed
 
 import os
 from os import abort
@@ -176,11 +176,6 @@ def register():
     return render_template("register.html", title="Register for an Account!", form=form, error=error)
 
 
-"""
-For the following OAuth stuff, you must use localhost:5000, and not 127.0.0.1
-because the site URL and callback are in that format, so the verifier code
-would be sent to the wrong location and never work.
-"""
 def uniqueUsername(base):
     """
     This is just for in the very rare case that someone has the same generated username as someone else
@@ -255,11 +250,9 @@ def logout():
     return redirect(url_for("home"))
 
 @app.route("/account")
+@login_required
 def account():
     error = None
-
-    if not session["userID"]:
-        return redirect(url_for("home"))
 
     savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).execute()
     savedSeedsRows = savedSeeds.data
@@ -443,7 +436,6 @@ def quiz():
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
-        newseed = makeSeed()
         tag: list[str] = [name for id, name in ts]
 
         argTags = request.args.getlist('tags')
@@ -452,7 +444,7 @@ def quiz():
         argSeed = request.args.get('seed')
 
         count = int(request.args.get('count', default = 10))
-        seed = argSeed if argSeed else newseed
+        seed = parseSeed(argSeed)
         tags = argTags if argTags else tag
         types = argTypes if argTypes else types
         languages = argLangs if argLangs else languages
@@ -482,7 +474,7 @@ def quiz():
         types = form.questionTypes.data
         count = form.questionCount.data
         languageSel = form.languageSelection.data
-        seed = form.seed.data if form.seed.data else makeSeed()
+        seed = parseSeed(form.seed.data)
         session["seed"] = seed
         if t is not None and types is not None and languageSel is not None and count is not None:
             ts_dict = {str(tag_id): name for tag_id, name in ts}
