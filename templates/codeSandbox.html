@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block body %}
+{% if error %}
+<p>{{ error }}</p>
+{% endif %}
+<div style="display: flex; flex-direction: column; align-items: center; padding-top: 5vh;">
+    <h1 style="text-align: center; font-size: 50px; font-family: monospace; margin-bottom: 10px;">Code Playground</h1>
+    <form method="POST" action="" style="width: 70%;">
+        {{ form.hidden_tag() }}
+        <div class="clear_bordering" style="padding: 15px 30px;">
+            <div style="margin-bottom: 10px;">
+                <h3 style="font-size: 23px;">{{ form.language.label }}</h3>
+                {{ form.language() }}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <h3 style="font-size: 23px;">{{ form.code.label }}</h3>
+                {{ form.code(rows=14, spellcheck="false", style="width: 100%; font-family: monospace; box-sizing: border-box;") }}
+            </div>
+        </div>
+        <br>
+        <hr>
+        <div style="text-align: center; margin: 20px;">
+            {{ form.submit(class="btn") }}
+        </div>
+    </form>
+
+    {% if result is not none %}
+    <div class="clear_bordering" style=""padding: 15px 30px; width: 70%;">
+	    <h3 style="font-size: 23px;">Output</h3>
+	    {% if result.stdout %}
+	    <div style="font-family: monospace; white-space: pre-wrap; margin-bottom: 8px;">{{ result.stdout }}</div>
+	    {% endif %}
+	    {% if result.stderr %}
+	    <div style="font-family: monospace; white-space: pre-wrap; margin-bottom: 8px; color: red">{{ result.stderr }}</div>
+	    {% endif %}
+	    {% if result.timedOut %}
+	    <div style="font-family: monospace;">[Timed out]</div>
+	    {% elif not result.stdout and not result.stderr %}
+	    <div style="font-family: monospace;">(no output)</div>
+    </div>
+    {% endif %}
+</div>
+
+<!--
+	!! CLAUDE GENERATED !!
+	FOR TAB AND SHIFT+TAB FUNCTIONALITY ACROSS SELECTIONS. REVIEW FULLY AND REWORK AS NECESSARY.
+-->
+<script>
+    const codeEl = document.getElementById("code");
+    const INDENT = "    ";  // 4 spaces
+
+    codeEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Tab") return;
+        e.preventDefault();
+
+        const value = codeEl.value;
+        const start = codeEl.selectionStart;
+        const end = codeEl.selectionEnd;
+        const multiLine = value.slice(start, end).includes("\n");
+
+        // Plain Tab with no multi-line selection: insert spaces at the cursor
+        if (!e.shiftKey && !multiLine) {
+            codeEl.setRangeText(INDENT, start, end, "end");
+            return;
+        }
+
+        // Otherwise work on whole lines covering the selection
+        const blockStart = value.lastIndexOf("\n", start - 1) + 1;
+        // a selection ending at the very start of a line shouldn't include that line
+        const effEnd = (end > start && value[end - 1] === "\n") ? end - 1 : end;
+        let blockEnd = value.indexOf("\n", effEnd);
+        if (blockEnd === -1) blockEnd = value.length;
+
+        const lines = value.slice(blockStart, blockEnd).split("\n");
+        const deltas = [];
+        const newLines = lines.map((line) => {
+            if (e.shiftKey) {
+                const trimmed = line.replace(/^( {1,4}|\t)/, "");
+                deltas.push(trimmed.length - line.length);
+                return trimmed;
+            }
+            deltas.push(INDENT.length);
+            return INDENT + line;
+        });
+
+        const totalDelta = deltas.reduce((a, b) => a + b, 0);
+        codeEl.setRangeText(newLines.join("\n"), blockStart, blockEnd, "preserve");
+
+        // keep the selection/cursor where it visually was
+        const newStart = Math.max(blockStart, start + deltas[0]);
+        const newEnd = Math.max(newStart, end + totalDelta);
+        codeEl.setSelectionRange(newStart, newEnd);
+    });
+</script>
+
+{% endblock %}

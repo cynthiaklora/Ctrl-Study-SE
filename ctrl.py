@@ -12,7 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm, CodeSandboxForm
 
 from datetime import timedelta
 from flask_session import Session
@@ -23,6 +23,7 @@ from flask_login import LoginManager, login_required, login_user, current_user, 
 import supabase_client
 from supabase_client import ctrlDB
 import template_builder
+import code_runner
 
 from urllib.parse import urlencode
 
@@ -101,11 +102,11 @@ def login():
         password = str(form.password.data or "")
 
         account = ctrlDB.table("users").select("id, username, role").eq("username", username).execute()
-        
+
         if not account.data:
             error = "Invalid username."
             return render_template("Login.html", title="Ctrl-Study: Login", form=form, error=error)
-        
+
         supabaseEmail = f"{username}@users.table"
 
         try:
@@ -158,7 +159,7 @@ def register():
         except Exception:
             user = None
             error = "Registration failed. Please try again."
-    
+
         if user is not None:
             try:
                 ctrlDB.table("users").insert({
@@ -371,6 +372,31 @@ def quiz():
             }
         return redirect(url_for("question"))
     return render_template("QuizSetup.html", tags=tags, form=form)
+
+@app.route("/code-sandbox", methods=["GET", "POST"])
+@login_required
+def codeSandbox():
+    if getattr(current_user, "role", None) != "admin":
+        return redirect(url_for("home"))
+
+    form = CodeSandboxForm(languages=list(code_runner.LANGUAGES))
+    result = None
+    error = None
+
+    if request.method == "POST" and form.validate_on_submit():
+        code = str(form.code.data or "").replace("\r\n", "\n")
+        try:
+            result = code_runner.runCode(str(form.language.data), code)
+        except code_runner.RunnerError as e:
+            error = str(e)
+
+    return render_template(
+        "codeSandbox.html",
+        title="Ctrl-Study: Code Sandbox",
+        form=form,
+        result=result,
+        error=error,
+    )
 
 # Starts local development server when run directly
 if __name__ == "__main__":

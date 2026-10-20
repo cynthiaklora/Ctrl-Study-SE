@@ -166,3 +166,16 @@ class ShortAnswerQuestionForm(QuestionForm[TextAreaField]):
         self.correct = correct
         self.feedback = feedback
         self.language = language
+
+class CodeSandboxForm(FlaskForm):
+    language = RadioField("Language", validators=[InputRequired()])
+    code = TextAreaField("Code", validators=[DataRequired(), Length(max=20000)])
+    submit = SubmitField("Run")
+
+    def __init__(self, languages: list[str], *args, **kwargs):
+        super(CodeSandboxForm, self).__init__(*args, **kwargs)
+        self.language.choices = [(l, l) for l in languages]
+
+        # preselect the first language on the initial page load only
+        if self.language.data is None and not self.is_submitted():
+            self.language.data = languages[0]
