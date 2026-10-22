@@ -1,29 +1,53 @@
 {% extends "base.html" %} {% block body %}
+<div class="account-page">
 
-<p>These are your saved seeds and quizzes.</p>
+
+    <h1>Your account</h1>
+    <p>Signed in as <strong>{{ current_user.username }}</strong></p>
+    <p>
+        {{autoSaved | length }} saved seeds .
+        {{ manualSaved | length }} fully saved quizzes
+    </p>
+
+    <a class = " btn" href="{{ url_for('quiz') }}">Start a new quiz</a>
 
 <h2>Saved Seeds</h2>
 {% for quiz in autoSaved %}
-    <p>Seed: {{ quiz.seed }} Created on: {{ quiz.created_at[:10] }} 
-    <a href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count, tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">
-    Retake</a></p>
+    <div class ="saved-seed">
+        <div>
+        <strong>{{ quiz.created_at[:10] }}</strong>
+        <p class="seed-number">Seed: {{ quiz.seed }}</p>
+        </div>
+    <a class="btn" href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count, tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">Retake quiz</a>
+    </div>
+    {% else %}
+    <!--Add button for retake-->
+    <p>NO saved seeds yet.</p>
 {% endfor %}
 
 <h2>Fully Saved Quizzes</h2>
 {% for quiz in manualSaved %}
   <details>
+    {% set score = namespace(correct=0) %}
+    {% set total = quiz.quiz_questions | length %}
+
+    {% for question in quiz.quiz_questions %}
+        {% if question.is_correct %}
+            {% set score.correct = score.correct + 1 %}
+        {% endif %}
+    {% endfor %}
+
     <summary>
-      {{ quiz.created_at[:10] }} - {{ quiz.quiz_questions | selectattr("is_correct") | list | length }}
-      / {{ quiz.question_count }} correct
+        {{ quiz.created_at[:10] }} · {{ score.correct }}/{{ total }} correct
     </summary>
 
     <p>Seed: {{ quiz.seed }}</p>
-    <a href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count,
-                        tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">Retake</a>
+    <a class="btn" href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count, tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">Retake quiz</a>
 
     {% for q in quiz.quiz_questions %}
       <div>
-        <strong>{{ q.position + 1 }}.</strong> {{ q.question_text }}
+        <h3>Question {{ q.position + 1 }}.</h3> 
+        <pre class="saved-question-text">{{ q.question_text }}</pre>
         <div>Your answer: {{ q.given_answers | join(", ") }}</div>
         {% if not q.is_correct %}
           <div>Correct: {{ q.correct_answers | join(", ") }}</div>
@@ -35,4 +59,5 @@
 {% else %}
   <p>No saved quizzes yet.</p>
 {% endfor %}
+</div>
 {% endblock %}
