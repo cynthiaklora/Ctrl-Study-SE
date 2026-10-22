@@ -2,6 +2,9 @@
 # This module defines any and all database interaction. All queries will be written here.
 
 from supabase import create_client, Client
+from supabase_auth import SyncSupportedStorage
+from supabase.lib.client_options import SyncClientOptions
+from flask import session
 import os
 import time
 import random
@@ -19,6 +22,32 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 
 ctrlDB: Client = create_client(url, key)
+
+
+"""
+Seperate client keeps supabase's PKCE code verifier in the user's Flask session 
+instead of in global with ctrlDB client. Without this, two users could try to login 
+at once and then the code verifiers overwrite each other.
+"""
+class FlaskSessionStorage(SyncSupportedStorage):
+    def get_item(self, key):
+        return session.get(f"sb:{key}")
+    def set_item(self, key, value):
+        session[f"sb:{key}"] = value
+    def remove_item(self, key):
+        session.pop(f"sb:{key}", None)
+
+def makeOauthClient():
+    return create_client(
+        url,
+        key,
+        options=SyncClientOptions(
+            flow_type="pkce",
+            persist_session=False,
+            auto_refresh_token=False,
+            storage=FlaskSessionStorage()
+        ),
+    )
 
 # A simple User class using Flask's UserMixin thing. It's got the is_authenticated, is_active, is_anonymous, get_id() stuff
 class User(UserMixin):

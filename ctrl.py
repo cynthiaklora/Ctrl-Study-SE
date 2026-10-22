@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from flask import Flask, render_template, session, request                             # Flask imports provide routing, form access, session state, and redirects
+from flask import Flask, render_template, session, request, jsonify                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
 from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
@@ -21,14 +21,15 @@ from flask import redirect, url_for
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 
 import supabase_client
-from supabase_client import ctrlDB
+from supabase_client import ctrlDB, makeOauthClient
 import template_builder
 
 from urllib.parse import urlencode
 
-from Frontend.QuestionFetch import QuestionContainer, makeSeed
+from Frontend.QuestionFetch import QuestionContainer, makeSeed, parseSeed
 
 import os
+from os import abort
 
 import shutil
 cache_path = "./flask_session_cache"
@@ -119,6 +120,7 @@ def login():
         if user is not None:
             role=account.data[0]["role"]
             login_user(User(id=user.id, username=username, role=role))
+            session["userID"] = getattr(current_user, "id", None)
             if (role == "admin"):
                 return redirect(url_for("templateIndex"))
             else:
@@ -173,11 +175,96 @@ def register():
 
     return render_template("register.html", title="Register for an Account!", form=form, error=error)
 
+
+def uniqueUsername(base):
+    """
+    This is just for in the very rare case that someone has the same generated username as someone else
+    For example, if someone with user_name bob from github signs in, and then someone with 
+    full_name bob from google signs in, they would have the same generated username, so
+    this checks and corrects that issue.
+    """
+    base = "".join(c for c in base if c.isalnum() or c in "-_")[:30] or "user"
+    candidate, n = base, 0
+    while ctrlDB.table("users").select("id").eq("username", candidate).execute().data:
+        n += 1
+        candidate = f"{base}{n}"
+    return candidate
+
+def get_or_create_profile(user):
+    existing = ctrlDB.table("users").select("id, username, role").eq("id", user.id).execute()
+    if existing.data:
+        return existing.data[0]
+
+    meta = user.user_metadata or {}
+    base = (
+    meta.get("user_name") or meta.get("preferred_username") # Github oath returns
+    or meta.get("full_name") or meta.get("name") # Google oath returns
+    or (user.email or "").split("@")[0] # Final default
+    )
+    username = uniqueUsername(base)
+    ctrlDB.table("users").insert({"id": user.id, "username": username}).execute()
+    return {"id": user.id, "username": username, "role": None}
+
+@app.route("/auth/callback")
+def authCallback():
+    code = request.args.get("code")
+    if not code:  # user cancelled on provider, or Supabase returned an error
+        return redirect(url_for("login"))
+
+    callbackClient = makeOauthClient()
+    try:
+        user = callbackClient.auth.exchange_code_for_session({"auth_code": code}).user
+        profile = get_or_create_profile(user)
+    except Exception:
+        return redirect(url_for("login"))
+
+    login_user(User(id=profile["id"], username=profile["username"], role=profile["role"]))
+    session["userID"] = current_user.id
+
+    if profile["role"] == "admin":
+        return redirect(url_for("templateIndex"))
+    return redirect(url_for("home"))
+
+OAuthProviders = {"github", "google"}
+
+@app.route("/login/<provider>")
+def OAuthLogin(provider):
+    if provider not in OAuthProviders:
+        abort(404)
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    OAuthClient = makeOauthClient()
+    result = OAuthClient.auth.sign_in_with_oauth({
+        "provider": provider,
+        "options": {"redirect_to": url_for("authCallback", _external=True)}
+    })
+    return redirect(result.url)
+
 @app.route("/logout")
 @login_required
 def logout():
+    ctrlDB.auth.sign_out()
     logout_user()
+    session.clear()
     return redirect(url_for("home"))
+
+@app.route("/account")
+@login_required
+def account():
+    error = None
+
+    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).execute()
+    savedSeedsRows = savedSeeds.data
+    fullQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)").eq("user_id", session["userID"]).order("created_at", desc=True).execute())
+    allQuizzes = fullQuizzes.data or []
+    fullQuizzesRows = [q for q in allQuizzes if q.get("quiz_questions")] # Keeps only quizzes that actually have saved questions
+
+    for q in fullQuizzesRows:
+        q["quiz_questions"].sort(key=lambda r: r["position"])
+
+    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows)
+    
 
 @app.route("/template", methods=["GET", "POST"])
 @login_required
@@ -191,8 +278,38 @@ def templateIndex():
 def credits():
     return render_template("credits.html", title="Ctrl-Study: Credits")
 
+def createQuizRow():
+    """Inserts the quizzes row for the current quiz once and remembers its id.
+    Returns the quiz id, or None if it couldn't be created."""
+    if session.get("quizID"):
+        return session["quizID"]
+
+    userID = session.get("userID")
+    params = session.get("quizParameters")
+    questions = session.get("quizQuestions")
+    if not (userID and params and questions):
+        return None
+
+    try:
+        resp = ctrlDB.table("quizzes").insert({
+            "user_id": userID,
+            "seed": int(params["seed"]),
+            "question_count": len(questions),
+            "tags": params.get("tags", []),
+            "types": params.get("types", []),
+            "languages": params.get("languages", []),
+        }).execute()
+        session["quizID"] = resp.data[0]["id"]
+        session.modified = True
+        return session["quizID"]
+    except Exception as e:
+        print(f"createQuizRow failed: {e}")
+        return None
+
 @app.route("/quiz-complete", methods=["GET"])
 def quizComplete():
+    error = None
+
     if "quizQuestions" not in session or "progress" not in session:
         print("User tried to use quiz results page without questions or progress in session")
         return redirect(url_for("quiz"))
@@ -220,6 +337,12 @@ def quizComplete():
 
     url = "/quiz?" + urlencode(session["quizParameters"], doseq=True)
 
+    # Auto saves the quiz seed, question count, tags, types, and languages
+    # save-quiz below lets users save the full quiz including questions, answers, feedback, etc
+    if session.get("userID"):
+        if createQuizRow() is None:
+            error = "Could not autosave quiz."
+
     return render_template (
         "QuizComplete.html",
         title="Ctrl-Study: Quiz Complete",
@@ -228,7 +351,8 @@ def quizComplete():
         correctness = session["correctness"],
         forms = forms,
         correctPercent = correctPercent,
-        retakeQuizURL = url
+        retakeQuizURL = url,
+        error=error
     )
 
 @app.route("/question", methods=["GET", "POST"])
@@ -307,11 +431,11 @@ def quiz():
     languages = ["Python", "C++"]
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
-    for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness", "seed", "quizParameters"]:
+    for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
-        newseed = makeSeed()
         tag: list[str] = [name for id, name in ts]
 
         argTags = request.args.getlist('tags')
@@ -320,7 +444,7 @@ def quiz():
         argSeed = request.args.get('seed')
 
         count = int(request.args.get('count', default = 10))
-        seed = argSeed if argSeed else newseed
+        seed = parseSeed(argSeed)
         tags = argTags if argTags else tag
         types = argTypes if argTypes else types
         languages = argLangs if argLangs else languages
@@ -350,7 +474,7 @@ def quiz():
         types = form.questionTypes.data
         count = form.questionCount.data
         languageSel = form.languageSelection.data
-        seed = form.seed.data if form.seed.data else makeSeed()
+        seed = parseSeed(form.seed.data)
         session["seed"] = seed
         if t is not None and types is not None and languageSel is not None and count is not None:
             ts_dict = {str(tag_id): name for tag_id, name in ts}
@@ -371,6 +495,80 @@ def quiz():
             }
         return redirect(url_for("question"))
     return render_template("QuizSetup.html", tags=tags, form=form)
+
+def sessionLookup(mapping, index, default=None):
+    if index in mapping:
+        return mapping[index]
+    return mapping.get(str(index), default)
+
+@app.route("/save-quiz", methods=['POST'])
+def saveQuiz():
+    userID = session.get("userID")
+    if not userID:
+        return jsonify(status="error", message="You need to be logged in to save a quiz."), 401
+
+    if session.get("quizQuestionsSaved"):
+        return jsonify(status="success", message="This quiz is already saved.")
+
+    questions = session.get("quizQuestions")
+    givenAnswers = session.get("quizGivenAnswers")
+    correctness = session.get("correctness")
+
+    if not questions or givenAnswers is None or correctness is None:
+        return jsonify(status="error", message="No completed quiz to save."), 400
+    if session.get("progress", 0) < len(questions):
+        return jsonify(status="error", message="Finish the quiz before saving it."), 400
+
+    # Normally created by the autosave; this is a fallback if that failed
+    quizID = createQuizRow()
+    if quizID is None:
+        return jsonify(status="error", message="Could not find or create this quiz."), 500
+
+    try:
+        rows = [
+            {
+                "position": index,
+                "source_question_id": getattr(question, "id", None),
+                "question_type": question.type,
+                "language": question.language,
+                "question_text": "\n\n".join(p for p in (question.prompt, question.question) if p) or question.title,
+                "options": (
+                    [
+                        {"value": str(c[0]), "label": str(c[1])}
+                        if isinstance(c, (tuple, list)) and len(c) >= 2
+                        else {"value": str(c), "label": str(c)}
+                        for c in question.answer
+                    ]
+                    if question.answer
+                    else None
+                ),
+                "correct_answers": [str(c[0]) if isinstance(c, (tuple, list)) else str(c) for c in (
+                    question.correct
+                    if isinstance(question.correct, (list, tuple, set))
+                    else [question.correct]
+                )],
+                "given_answers": [str(g) for g in sessionLookup(givenAnswers, index, [])],
+                "is_correct": bool(sessionLookup(correctness, index, False)),
+                "feedback": question.feedback,
+                "quiz_id": quizID,
+            }
+            for index, question in enumerate(questions)
+        ]
+    except Exception as e:
+        print(f"save-quiz: could not build question rows: {e}")
+        return jsonify(status="error", message="Could not read the quiz data."), 500
+
+    try:
+        # Upsert on the (quiz_id, position) unique constraint, so a retry
+        # after a partial failure can't create duplicates or conflicts
+        ctrlDB.table("quiz_questions").upsert(rows, on_conflict="quiz_id,position").execute()
+    except Exception as e:
+        print(f"save-quiz: question insert failed: {e}")
+        return jsonify(status="error", message="Could not save the quiz questions."), 500
+
+    session["quizQuestionsSaved"] = True
+    session.modified = True
+    return jsonify(status="success", message="Quiz saved to account.")
 
 # Starts local development server when run directly
 if __name__ == "__main__":
