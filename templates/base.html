@@ -10,16 +10,30 @@
     {% else %}
     <title>Ctrl Study</title>
     {% endif %}
+    <!-- reads theme from local storage and applys when the page loads
+     uses system if nothing was saved-->
+    <script>
+        const savedTheme = localStorage.getItem("theme") ||"system";
+        document.documentElement.dataset.theme = savedTheme;
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     {% block head %}
     {% endblock %}
 </head>
 
-<body>
+<!--makes the header in blue and red mode red and blue outside of the home page-->
+{% if request.endpoint == 'home' %}
+<body class="home-page">
+    {% else %}
+        <body class="inner-page">
+            {% endif %}
     <div class="headerContainer">
         <div style="margin-bottom: 15px; padding-top: 5px; top:0; margin: 8px; margin-top: 0;">
+            <!-- add the theme button beside the home button-->
             <strong>Ctrl Study</strong> |
             <a href="/" class="btn">Home</a>
+
+            <!--added account information-->
             {% if not current_user.is_authenticated %}
             <a href="/login" class="btn">Login</a>
             {% endif %}
@@ -29,6 +43,27 @@
             {% endif %}
             {% block headerbar %}
             {% endblock %}
+
+            <div class = "theme-dropdown" >
+                 <button 
+                type = "button"
+                id = "mode-toggle"
+                aria-expanded = "false"
+                aria-controls = "theme-picker"
+                >Theme
+                <!-- this is where the theme dropdown with options is created-->
+            </button>
+            <span id = "theme-picker" hidden>
+                <label for = "theme-select" > Choose theme:</label>
+                <select id = "theme-select">
+                    <option value = "system">System default</option>
+                    <option value = "light">Light</option>
+                    <option value = "dark" >Dark</option>
+                    <option value = "blue" >Blue</option>
+                    <option value = "red" >Red</option>
+                </select>
+            </span>
+            </div>
         </div>
         <hr />
     </div>
@@ -37,6 +72,24 @@
         {% block body %}
         {% endblock %}
     </div>
-</body>
+    <!--shows the theme button when its clicked-->
+    <script>
+        const button = document.getElementById("mode-toggle");
+        const picker = document.getElementById("theme-picker");
+        const select = document.getElementById("theme-select");
+        select.value = document.documentElement.dataset.theme;
 
+        // updates the toggle when clicked
+        button.onclick = () => {
+            picker.hidden = !picker.hidden;
+            button.setAttribute("aria-expanded", String(!picker.hidden))
+        };
+
+        // this applies the selected theme to <html> 
+        select.onchange = () => {
+            document.documentElement.dataset.theme = select.value;
+            localStorage.setItem("theme", select.value);
+        };
+    </script>
+</body>
 </html>
