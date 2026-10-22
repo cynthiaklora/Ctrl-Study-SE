@@ -24,11 +24,12 @@
         <hr>
         <div style="text-align: center; margin: 20px;">
             {{ form.submit(class="btn") }}
+               <a class="btn" href="{{ url_for('register') }}">Register</a>
         </div>
     </form>
-    <a href="{{ url_for('OAuthLogin', provider='github') }}">Sign In With Github</a>
-    <a href="{{ url_for('OAuthLogin', provider='google') }}">Sign In With Google</a>
-    <p style="text-align: center; font-size: 20px; font-family: monospace; margin-bottom: 10px;">Don't have an account?</p>
-    <a href="/register"> <h1 class="btn" style="text-align: center; font-size: 50px; font-family: monospace; margin-bottom: 10px;">Register</h1> </a>
+    <a class="btn" href="{{ url_for('OAuthLogin', provider='github') }}">Login In With Github</a>
+    <a class="btn"href="{{ url_for('OAuthLogin', provider='google') }}">Login In With Google</a>
+   <!--- <p style="text-align: center; font-size: 20px; font-family: monospace; margin-bottom: 10px;">Don't have an account?</p> -->
+    <!--<a href="/register"> <h1 class="btn" style="text-align: center; font-size: 50px; font-family: monospace; margin-bottom: 10px;">Register</h1> </a> -->
 </div>
 {% endblock %}

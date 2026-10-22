@@ -7,26 +7,129 @@
     /* we support light mode, technically, but the colors are not relative as-is
     it is better to support what we have all been using apparently.
     color-scheme: light dark;*/
+    color-scheme: light dark ;
+}
+:root[data-theme = "light"] {
+    color-scheme: light
+}
+:root[data-theme = "dark"] {
+    color-scheme: dark
+}
+:root[data-theme = "light"] body {
+    background-color: #e6e5e5;
+}
+
+/*overrides the .slight_clear bodering, so in light mode 
+   incorrect feedback background is light instead of dark*/
+:root[data-theme="light"] .slight_clear_bordering {
+    background-color: #e6e5e5;
+    color: #222222;
+    border-color: #e6e5e5;
+}
+/* possibly make header the same color as theme might change */
+:root[data-theme="blue"] .headerContainer {
+    background-color: #1f2f8c;
+}
+
+/* possibly make header the same color as theme might change */
+:root[data-theme="red"] .headerContainer {
+    background-color: #6f1111;
+}
+
+
+:root[data-theme="light"] .headerContainer {
+    background-color: #e6e5e5;
+}
+
+/*makes link text black in light mode*/
+:root[data-theme = "light"] .share-quiz-link {
+    color: #222222;
+}
+
+/* updates the quiz link for system light mode*/
+@media (prefers-color-scheme: light ) {
+    :root[data-theme = "system"] .share-quiz-link {
+        color: #222222;
+    }
+}
+
+
+:root[data-theme = "dark"] body {
+    background-color: #2e2e2e;
+}
+/* Blue theme color with a dark browser control*/
+:root[data-theme = "blue"] {
+    color-scheme: dark
+}
+:root[data-theme = "blue"] body {
+    background-color: #1f2f8c;
+}
+
+/* Red theme color, with a dark browser controls */
+:root[data-theme = "red"]{
     color-scheme: dark;
 }
 
-/* light mode */
-/*@media (prefers-color-scheme: light) {
-    body {
-        background-color: #d1d1d1
-    }
-}*/
 
-/* dark mode */
+:root[data-theme = "red"] body {
+    background-color: #6f1111;
+}
+
+/* This is the system prefereed light mode color */
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: #e6e5e5;
+    }
+}
+/* updates system light mode question feedbackbackground*/
+@media (prefers-color-scheme: light) {
+    :root[data-theme="system"] .slight_clear_bordering {
+        background-color: #e6e5e5;
+        color: #222222;
+        border-color: #e6e5e5;
+    }
+}
+/*this updates the header for system light mode making it white */
+@media(prefers-color-scheme: light) {
+    :root[data-theme="system"] .headerContainer {
+        background-color: #e6e5e5;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    :root[data-theme="system"] .welcome-heading {
+        color : white;
+    }
+}
+
+:root[data-theme="light"] .welcome-heading {
+    color : white;
+}
+
+
+/* This is the system prefered dark mode color */
 @media (prefers-color-scheme: dark) {
     body {
-        background-color: #2e2e2e
+        background-color: #2e2e2e;
     }
 }
 
-body {
-    background-color: #2e2e2e
+/* this is the default colorscheme */
+@media (prefers-color-scheme:default){
+    body {
+        background-color: #2e2e2e;
+    }
 }
+
+/*home page keeps dark header color all other pages copy theme header color
+:root[data-theme="blue"] .inner-page .headerContainer {
+    background-color: #1f2f8c;
+}
+:root[data-theme="red"] .inner-page .headerContainer {
+    background-color: #6f1111;
+}
+
+*/
 
 /* responsiveness */
 @media (min-width: 768px) {
@@ -460,4 +563,141 @@ textarea.answer {
 
 #submit-btn {
     transition: opacity 0.1s;
+}
+
+/* theme- select button style */
+ #theme-select {
+    padding: 8px;
+    border: 1px solid #627277;
+    border-radius: 6px;
+    background-color: Canvas;
+    color:CanvasText;
+    font-size: 15px;
+    cursor: pointer;
+}
+/* keep theme Beside the Home buttoon*/
+.theme-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Position the dropdown below the theme button*/
+#theme-picker {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10;
+    padding: 12px;
+    background-color: Canvas;
+    color:CanvasText;
+    border: 1px solid #627277;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+/* account formatting */
+.account-page {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 16px;
+    line-height: 1.6;
+}
+
+.account-page details {
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.account-page summary {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.account-page details > div {
+    border-top: 1px solid currentColor;
+    margin-top: 20px;
+    padding-top: 16px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    tab-size: 4;
+}
+
+.account-page details > div > div {
+    margin-top: 8px;
+}
+
+.account-page .btn {
+    margin-top: 10px;
+}
+
+/* saved quiz summary */
+
+.account-page .quiz-info {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.95rem;
+    font-weight: normal;
+}
+
+.account-page .quiz-score {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.account-page .saved-question-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: 16px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    margin: 12px 0 20px;
+}
+
+.account-page details > div > div {
+    margin-top: 12px;
+}
+
+/* Saved seed rows */
+.account-page .saved-seed {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.account-page .saved-seed > div {
+    min-width: 0;
+}
+
+.account-page .saved-seed p {
+    margin: 4px 0 0;
+}
+
+.account-page .seed-number {
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.account-page .saved-seed .btn {
+    margin: 0;
+}
+
+/* keep the account heading and information closer together */
+
+.account-page h1 {
+    margin-bottm: 12px;
+}
+
+.acount-page > p {
+    margin: 8px 0;
 }
