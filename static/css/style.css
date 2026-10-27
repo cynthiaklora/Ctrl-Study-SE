@@ -701,3 +701,6 @@ textarea.answer {
 .acount-page > p {
     margin: 8px 0;
 }
+
+.account-page .saved-seed[hidden],
+.account-page details[hidden] { display: none; }
