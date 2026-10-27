@@ -1,33 +1,36 @@
 {% extends "base.html" %} {% block body %}
 <div class="account-page">
 
-
     <h1>Your account</h1>
     <p>Signed in as <strong>{{ current_user.username }}</strong></p>
     <p>
         {{autoSaved | length }} saved seeds .
         {{ manualSaved | length }} fully saved quizzes
     </p>
-
     <a class = " btn" href="{{ url_for('quiz') }}">Start a new quiz</a>
 
 <h2>Saved Seeds</h2>
 {% for quiz in autoSaved %}
-    <div class ="saved-seed">
+    <div class="saved-seed" {% if loop.index > 5 %}data-extra="seeds" hidden{% endif %}>
         <div>
         <strong>{{ quiz.created_at[:10] }}</strong>
         <p class="seed-number">Seed: {{ quiz.seed }}</p>
         </div>
     <a class="btn" href="{{ url_for('quiz', seed=quiz.seed, count=quiz.question_count, tags=quiz.tags, types=quiz.types, languages=quiz.languages) }}">Retake quiz</a>
     </div>
-    {% else %}
-    <!--Add button for retake-->
+{% else %}
     <p>NO saved seeds yet.</p>
 {% endfor %}
 
+{% if autoSaved | length > 5 %}
+<button type="button" class="toggle-extra" data-group="seeds" data-total="{{ autoSaved | length }}">
+    Show all seeds ({{ autoSaved | length }})
+</button>
+{% endif %}
+
 <h2>Fully Saved Quizzes</h2>
 {% for quiz in manualSaved %}
-  <details>
+  <details {% if loop.index > 5 %}data-extra="quizzes" hidden{% endif %}>
     {% set score = namespace(correct=0) %}
     {% set total = quiz.quiz_questions | length %}
 
@@ -59,5 +62,28 @@
 {% else %}
   <p>No saved quizzes yet.</p>
 {% endfor %}
+
+{% if manualSaved | length > 5 %}
+<button type="button" class="toggle-extra" data-group="quizzes" data-total="{{ manualSaved | length }}">
+    Show all quizzes ({{ manualSaved | length }})
+</button>
+{% endif %}
+<script>
+    document.querySelectorAll(".toggle-extra").forEach(button => {
+        const group = button.dataset.group;
+        const total = button.dataset.total;
+        const extras = document.querySelectorAll(`[data-extra="${group}"]`);
+        let showingAll = false;
+
+        button.addEventListener("click", () => {
+            showingAll = !showingAll;
+            extras.forEach(el => el.hidden = !showingAll);
+            button.textContent = showingAll
+                ? `Show fewer ${group}`
+                : `Show all ${group} (${total})`;
+        });
+    });
+</script>
+
 </div>
 {% endblock %}
