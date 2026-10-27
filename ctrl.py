@@ -70,7 +70,8 @@ login_manager.init_app(app)
 @app.route("/index", methods=["GET"])
 def home():
     userName = getattr(current_user, "username", "")
-    return render_template("index.html", title="Ctrl-Study: Home", username=userName)
+    role = getattr(current_user, "role", "")
+    return render_template("index.html", title="Ctrl-Study: Home", username=userName, role=role)
 
 class User(UserMixin):
     def __init__(self, id, username, role=None):
@@ -254,7 +255,7 @@ def logout():
 def account():
     error = None
 
-    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).execute()
+    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).order("created_at", desc=True).execute()
     savedSeedsRows = savedSeeds.data
     fullQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)").eq("user_id", session["userID"]).order("created_at", desc=True).execute())
     allQuizzes = fullQuizzes.data or []
