@@ -1,0 +1,15 @@
+services:
+  controller:
+    build: .
+    image: ctrl-study
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # reference the host docker daemon so sibling containers can be created
+    env_file: .env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
