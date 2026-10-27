@@ -10,7 +10,9 @@
 <h1 class="welcome-heading" style="text-align: center; font-size: 65px;font-family: monospace;">Welcome to Ctrl+Study {{ username }}</h1>
 
   <div class="h-aligning" style="margin-top: 20px;">
+    {% if role=='admin' %}
     <a href="/template" class="big-btn">Template Builder</a><br>
+    {% endif %}
     <a href="/quiz" class="big-btn">Start Quiz</a><br>
     <a href="/credits" class="big-btn">Credits!</a>
   </div>
