@@ -32,6 +32,10 @@ from Frontend.QuestionFetch import QuestionContainer, makeSeed, parseSeed
 import os
 from os import abort
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 import shutil
 cache_path = "./flask_session_cache"
 try:
@@ -59,6 +63,16 @@ app.config["SESSION_FILE_DIR"] = "./flask_session_cache"
 app.config["SESSION_PERMANENT"] = False  # Sessions expire when the browser is closed
 app.config["SESSION_TYPE"] = "filesystem"  # Store session data in files
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=6)
+
+# trust one proxy (caddy)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200/hour"],
+    storage_uri="memory://",
+)
 
 Session(app)
 
@@ -595,6 +609,10 @@ def codeSandbox():
         result=result,
         error=error,
     )
+
+@app.route("/whoami")
+def whoami():
+    return {"ip": request.remote_addr, "scheme": request.scheme}
 
 # Starts local development server when run directly
 if __name__ == "__main__":

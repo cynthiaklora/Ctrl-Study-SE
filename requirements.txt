@@ -7,5 +7,7 @@ Flask-Session
 flask-wtf
 bcrypt
 flask-login
+flask-limiter
+flask-wtf
 gunicorn
 docker
