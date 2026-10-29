@@ -20,6 +20,9 @@
                     <!-- select tags -->
                     <div class="column">
                         <h3 style="font-size: 23px;">Select Tags</h3>
+                        <input class="clear_bordering_fixed" style="width: 85%"
+                        type="search" id="tag-search" placeholder="Search tags (e.g. queue, int)" autocomplete="off">
+                        <p id="tag-status" style="margin: 6px 0; font-size: 14px;"></p>
                         <div class="clear_bordering_fixed">
                             {{ form.tagSelection(style="list-style:none") }}
                         </div>
@@ -58,20 +61,56 @@
     </form>
 
     <script>
-        function toggleCheckboxes(query) {
-            var checkboxes = document.querySelectorAll(query);
-            var toggle = (checkboxes[0].checked == true) ? false : true;
+        function toggleCheckboxes(query, visibleOnly) {
+            var checkboxes = Array.from(document.querySelectorAll(query));
+            if (visibleOnly) {
+                checkboxes = checkboxes.filter(cb => cb.closest("li").style.display !== "none");
+            }
+            if (checkboxes.length === 0) return;
+
+            var toggle = !checkboxes[0].checked;
             checkboxes.forEach(checkbox => {
                 checkbox.checked = toggle;
             });
         }
 
+        const searchBox = document.getElementById("tag-search");
+        const status = document.getElementById("tag-status");
+        const tagItems = document.querySelectorAll("#tagSelection li");
+
+        function updateStatus(shown) {
+            status.textContent = `showing ${shown} of ${tagItems.length}`;
+        }
+
+        function filterTags() {
+            // "python, loops" = ["python", "loops"], a tag matches if it contains any term
+            const terms = searchBox.value.toLowerCase().split(",").map(t => t.trim()).filter(Boolean);
+            let shown = 0;
+
+            tagItems.forEach(li => {
+                const text = li.textContent.toLowerCase();
+                const match = terms.length === 0 || terms.some(t => text.includes(t));
+                li.style.display = match ? "" : "none";
+                if (match) shown++;
+            });
+            updateStatus(shown);
+        }
+
+        searchBox.addEventListener("input", filterTags);
+
+        // Prevents pressing enter while selecting the search box
+        searchBox.addEventListener("keydown", e => {
+            if (e.key === "Enter") e.preventDefault();
+        });
+
+        filterTags();
+
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="questionTypes"]');
             });
-            document.getElementById('select-all-tags').addEventListener('click', function (event) {
-                toggleCheckboxes('input[name="tagSelection"]');
+            document.getElementById('select-all-tags').addEventListener('click', function () {
+                toggleCheckboxes('input[name="tagSelection"]', true);
             });
             document.getElementById('select-all-languages').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="languageSelection"]');
@@ -84,5 +123,4 @@
         });
     </script>
 </div>
-
 {% endblock %}
