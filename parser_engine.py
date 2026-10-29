@@ -1,4 +1,4 @@
-﻿# Purpose:
+# Purpose:
 # This module parses the custom question template format and generates rendered output for with generateQuestion() which will be used outside of this module
 
 # Features (read this for tldr, good luck):
@@ -621,6 +621,7 @@ def generateQuestion(
     promptText: str = "",
     feedbackText: str = "",
     seed: int | None = None,
+    questionType: str = "",
 ) -> dict[str, Any]:
     if not promptText.strip():
         raise TemplateProcessingError("ERROR at: missing prompt content")
@@ -635,6 +636,14 @@ def generateQuestion(
     renderedAnswers = evaluateAnswer(sections.answer, context, rng)
     renderedIncorrect = evaluateIncorrect(sections.incorrect, context, correctAnswers=renderedAnswers, rng=rng)
     renderedFeedbackLines = evaluateAnswer(feedbackText, context, rng)
+
+    # Fill-in-the-blank: every [[blank]] needs exactly one answer line (in order), so catch mismatches while the author is still previewing
+    if questionType == "fill_in_the_blank":
+        blankCount = renderedQuestion.count(question_library.BLANK_MARKER)
+        if blankCount == 0:
+            raise errorAt(f"question has no {question_library.BLANK_MARKER} (or {{{{ blank() }}}}) markers")
+        if blankCount != len(renderedAnswers):
+            raise errorAt(f"question has {blankCount} blank(s) but the answer section has {len(renderedAnswers)} line(s)")
 
     # Return the final response payload
     return {
