@@ -2,7 +2,7 @@ from Frontend.forms import QuestionForm
 import random
 from random import choice
 from typing import Any, cast
-from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm
+from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm
 from parser_engine import generateQuestion
 # from flask import session
 from dataclasses import dataclass
@@ -97,9 +97,11 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
         randNum = random.randrange(sys.maxsize)
         print(randNum)
         gq = generateQuestion(
-            templateText=qu["template"], promptText=qu["prompt"], feedbackText=qu["feedback"], seed=randNum
+            templateText=qu["template"], promptText=qu["prompt"], feedbackText=qu["feedback"], seed=randNum,
+            questionType=qu["type"]
         )
-        gq["answers"] = shuffleAnswers([*gq["incorrect"], *gq["answer"]], seed=randNum)
+        # Fill-in-the-blank has no options to shuffle (and the answers must not leak into the saved options)
+        gq["answers"] = [] if qu["type"] == "fill_in_the_blank" else shuffleAnswers([*gq["incorrect"], *gq["answer"]], seed=randNum)
         gq["type"] = qu["type"]
         questions.append(QuestionContainer(
             prompt=gq["prompt"],
@@ -149,6 +151,15 @@ def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> Ques
             )
         case "short_answer":
             form = ShortAnswerQuestionForm(
+                prompt=question.prompt,
+                question=question.question,
+                correct=question.correct,
+                feedback=question.feedback,
+                language=question.language,
+                prefix=label
+            )
+        case "fill_in_the_blank":
+            form = FillBlankQuestionForm(
                 prompt=question.prompt,
                 question=question.question,
                 correct=question.correct,
