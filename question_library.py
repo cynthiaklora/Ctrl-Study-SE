@@ -1,4 +1,4 @@
-﻿# Purpose:
+# Purpose:
 # This module defines the callable functions to be used in the template text
 
 # Features:
@@ -565,3 +565,13 @@ def loopPrint(formatString: str, *loopVars: Any) -> str:
         loopVar.current = loopVar.end
 
     return "".join(renderedPieces)                                          # Returns final concatenated output across all nested iterations
+
+
+# ================ BLANK_MARKER / blank: MARKS WHERE A FILL-IN-THE-BLANK INPUT GOES ================
+# Used by the fill_in_the_blank question type. Put [[blank]] (or {{ blank() }}) in the question section wherever a blank belongs.
+# Each blank is matched, in order, to one line of the answer section.
+# Use: blank() -> "[[blank]]"
+BLANK_MARKER = "[[blank]]"
+
+def blank() -> str:
+    return BLANK_MARKER
