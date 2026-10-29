@@ -12,7 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request, jsonify                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm, LoginForm, RegisterForm
 
 from datetime import timedelta
 from flask_session import Session
@@ -391,7 +391,10 @@ def question():
         if not isinstance(answers, list):
             answers = [answers]
         answers = [answer.replace('\r\n', '\n') for answer in answers]
-        isCorrect = set(answers) == set(correct)
+        if isinstance(form, FillBlankQuestionForm):
+            isCorrect = form.grade(answers)     # blanks are graded in order, not as a set
+        else:
+            isCorrect = set(answers) == set(correct)
         session["quizGivenAnswers"][session["progress"]] = answers
         session["correctness"][session["progress"]] = isCorrect
         session["SingleQuestionState"] = "Answered"
@@ -426,7 +429,8 @@ def quiz():
         "multiple_choice",
         "multiple_select",
         #"short_answer", until we have good ones
-        "true_false"
+        "true_false",
+        "fill_in_the_blank"
     ]
     languages = ["Python", "C++"]
     ts = [(tag["id"], tag["name"]) for tag in tags]
