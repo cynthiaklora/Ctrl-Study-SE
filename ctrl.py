@@ -9,16 +9,17 @@
 
 from __future__ import annotations
 
-from flask import Flask, render_template, session, request, jsonify                             # Flask imports provide routing, form access, session state, and redirects
+from flask import Flask, render_template, session, request, jsonify                        # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
 from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm
 
-from datetime import timedelta
+from datetime import timedelta, timezone, datetime
 from flask_session import Session
 
-from flask import redirect, url_for
+from flask import redirect, url_for, abort
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
+from flask_wtf import FlaskForm
 
 import supabase_client
 from supabase_client import ctrlDB, makeOauthClient
@@ -29,7 +30,6 @@ from urllib.parse import urlencode
 from Frontend.QuestionFetch import QuestionContainer, makeSeed, parseSeed
 
 import os
-from os import abort
 
 import shutil
 cache_path = "./flask_session_cache"
@@ -250,21 +250,25 @@ def logout():
     session.clear()
     return redirect(url_for("home"))
 
+class CsrfForm(FlaskForm):
+    pass  # just provides the CSRF token
+
 @app.route("/account")
 @login_required
 def account():
     error = None
 
-    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).order("created_at", desc=True).execute()
+    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).is_("deleted_at", "NULL").order("created_at", desc=True).execute()
     savedSeedsRows = savedSeeds.data
-    fullQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)").eq("user_id", session["userID"]).order("created_at", desc=True).execute())
+    fullQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)")
+                   .eq("user_id", session["userID"]).is_("deleted_at", "NULL").order("created_at", desc=True).execute())
     allQuizzes = fullQuizzes.data or []
     fullQuizzesRows = [q for q in allQuizzes if q.get("quiz_questions")] # Keeps only quizzes that actually have saved questions
 
     for q in fullQuizzesRows:
         q["quiz_questions"].sort(key=lambda r: r["position"])
 
-    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows)
+    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows, csrfForm=CsrfForm())
     
 
 @app.route("/template", methods=["GET", "POST"])
@@ -526,35 +530,34 @@ def saveQuiz():
         return jsonify(status="error", message="Could not find or create this quiz."), 500
 
     try:
-        rows = [
-            {
+        rows = []
+        for index, question in enumerate(questions):
+            labels = { f"choice_{i}": str(text) for i, text in enumerate(question.answer or []) }
+
+            correctValues = (
+                question.correct
+                if isinstance(question.correct, (list, tuple, set))
+                else [question.correct]
+            )
+            correctValues = [str(c[0]) if isinstance(c, (tuple, list)) else str(c) for c in correctValues]
+            givenValues = [str(g) for g in sessionLookup(givenAnswers, index, [])]
+
+            rows.append({
                 "position": index,
                 "source_question_id": getattr(question, "id", None),
                 "question_type": question.type,
                 "language": question.language,
                 "question_text": "\n\n".join(p for p in (question.prompt, question.question) if p) or question.title,
                 "options": (
-                    [
-                        {"value": str(c[0]), "label": str(c[1])}
-                        if isinstance(c, (tuple, list)) and len(c) >= 2
-                        else {"value": str(c), "label": str(c)}
-                        for c in question.answer
-                    ]
-                    if question.answer
-                    else None
+                    [{"value": v, "label": l} for v, l in labels.items()]
+                    if labels else None
                 ),
-                "correct_answers": [str(c[0]) if isinstance(c, (tuple, list)) else str(c) for c in (
-                    question.correct
-                    if isinstance(question.correct, (list, tuple, set))
-                    else [question.correct]
-                )],
-                "given_answers": [str(g) for g in sessionLookup(givenAnswers, index, [])],
+                "correct_answers": correctValues,
+                "given_answers": [labels[v] for v in givenValues],
                 "is_correct": bool(sessionLookup(correctness, index, False)),
                 "feedback": question.feedback,
                 "quiz_id": quizID,
-            }
-            for index, question in enumerate(questions)
-        ]
+            })
     except Exception as e:
         print(f"save-quiz: could not build question rows: {e}")
         return jsonify(status="error", message="Could not read the quiz data."), 500
@@ -570,6 +573,21 @@ def saveQuiz():
     session["quizQuestionsSaved"] = True
     session.modified = True
     return jsonify(status="success", message="Quiz saved to account.")
+
+@app.route("/quiz/<int:quizId>/delete", methods=["POST"])
+@login_required
+def deleteQuiz(quizId):
+    if not CsrfForm().validate_on_submit():
+        abort(400)
+
+    (ctrlDB.table("quizzes")
+        .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", quizId)
+        .eq("user_id", current_user.id)
+        .is_("deleted_at", "null")
+        .execute())
+
+    return redirect(url_for("account"))
 
 # Starts local development server when run directly
 if __name__ == "__main__":
