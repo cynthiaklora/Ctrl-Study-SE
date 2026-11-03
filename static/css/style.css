@@ -121,15 +121,112 @@
     }
 }
 
-/*home page keeps dark header color all other pages copy theme header color
-:root[data-theme="blue"] .inner-page .headerContainer {
-    background-color: #1f2f8c;
-}
-:root[data-theme="red"] .inner-page .headerContainer {
-    background-color: #6f1111;
+/*----------account formatting------------ */
+.account-page {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 16px;
+    line-height: 1.6;
 }
 
-*/
+.account-page details {
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.account-page summary {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.account-page details > div {
+    border-top: 1px solid currentColor;
+    margin-top: 20px;
+    padding-top: 16px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    tab-size: 4;
+}
+
+.account-page details > div > div {
+    margin-top: 8px;
+}
+
+.account-page .btn {
+    margin-top: 10px;
+}
+
+/* saved quiz summary */
+
+.account-page .quiz-info {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.95rem;
+    font-weight: normal;
+}
+
+.account-page .quiz-score {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.account-page .saved-question-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: 16px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    margin: 12px 0 20px;
+}
+
+.account-page details > div > div {
+    margin-top: 12px;
+}
+
+/* Saved seed rows */
+.account-page .saved-seed {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    border: 1px solid currentColor;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.account-page .saved-seed > div {
+    min-width: 0;
+}
+
+.account-page .saved-seed p {
+    margin: 4px 0 0;
+}
+
+.account-page .seed-number {
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.account-page .saved-seed .btn {
+    margin: 0;
+}
+
+/* keep the account heading and information closer together */
+.account-page h1 {
+    margin-bottom: 12px;
+}
+
+.account-page > p {
+    margin: 8px 0;
+}
 
 /* responsiveness */
 @media (min-width: 768px) {
@@ -378,6 +475,27 @@ button,
     color: white;
 }
 
+/* GIve header llinks and the theme button consistent sizing and alignment  */
+.headerContainer .btn,
+.headerContainer button {
+    box-sizing: border-box;
+    width: 75px;
+    height: auto;
+    padding: 10px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: normal;
+}
+
+.headerContainer .theme-dropdown {
+    vertical-align: middle;
+}
+
+
 .clear_btn {
     border: 1px solid #6a6a6a;
     font-size: 17px;
@@ -414,6 +532,42 @@ button:hover,
 .clear_btn:hover,
 .big-btn:hover {
     background-color: #7b8f95;
+}
+
+#theme-picker button {
+    display: block;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    padding: 6px 8px 6px 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* seperate theme options*/
+#theme-picker button + button {
+    border-top: 1px solid rgb(128 128 128 / 25%);
+}
+
+/* marks an option for wich ever choice is selected */
+#theme-picker button[aria-pressed="true"]::before {
+    content: "✓";
+    position: absolute;
+    left: 10px;
+}
+
+#theme-picker button:hover,
+#theme-picker button:focus-visible {
+    background-color: rgb(128 128 128 / 25%);
+    outline: none;
 }
 
 /* ALIGNING */
@@ -479,12 +633,58 @@ button:hover,
     padding-inline-start: 8px;
 }
 
+/* Nested quiz tag checkboxes */
+.quiz-tags .tag-tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.quiz-tags .tag-tree #tagSelection {
+    list-style: none;
+    margin: 8px 0 0;
+    padding-left: 28px;
+}
+
+.quiz-tags .tag-tree li {
+    margin: 8px 0;
+}
+
+.quiz-tags .tag-tree label {
+    cursor: pointer;
+}
+
+.quiz-tags .tag-tree input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+/* Expandable groups inside the quiz tags */
+.quiz-tags .tag-group > summary {
+    cursor: pointer;
+    padding: 5px 0;
+    text-align: left;
+}
+
+.quiz-tags .tag-group > summary input {
+    margin: 0 8px;
+}
+
+.quiz-tags .tag-children {
+    list-style: none;
+    margin: 6px 0;
+    padding-left: 28px;
+}
+
+.quiz-tags .tag-children li {
+    margin: 8px 0;
+    text-align: left;
+}
 /* PROGRESS BAR */
 
 .progressbar {
     margin: auto;
     padding: 10px;
-    max-width: 70%;
+    max-width: 60%; /* changed for better spacing */
     max-height: 80%;
     overflow: auto;
     word-wrap: break-word;
@@ -504,7 +704,6 @@ ul.answer li {
     font-size: 18px;
     border: 1px solid #627277;
     border-radius: 5px;
-    background-color: none;
     color: CanvasText;
 }
 
@@ -550,8 +749,9 @@ textarea.answer {
     border: 1px solid #627277;
     border-radius: 5px;
     text-decoration: none;
-    background-color: none;
-    color: CanvasText;
+    background-color: #2e2e2e;
+    color: #ffffff;
+    color-scheme: system;
 }
 
 
@@ -566,138 +766,456 @@ textarea.answer {
 }
 
 /* theme- select button style */
- #theme-select {
-    padding: 8px;
-    border: 1px solid #627277;
-    border-radius: 6px;
-    background-color: Canvas;
-    color:CanvasText;
-    font-size: 15px;
-    cursor: pointer;
-}
-/* keep theme Beside the Home buttoon*/
+
+/* positions the theme button at the right */
 .theme-dropdown {
     position: relative;
     display: inline-block;
+    float: right;
+    margin-right: 15px;
+}
+
+/* removes the default focus ring from the Theme button */
+#mode-toggle:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#mode-toggle:focus-visible {
+    outline: 2px solid #999;
+    outline-offset: 2px;
+}
+
+/* Theme dropdown Style(system,light,dark,blue,red)  */
+:root {
+    --theme-dropdown-bg: #2e2e2e;
+    --theme-dropdown-text: #ffffff;
+}
+
+/* Light gray: Light */
+:root[data-theme="light"] {
+    --theme-dropdown-bg: #e6e5e5;
+    --theme-dropdown-text: #222222;
+}
+
+/* Light gray: System Light */
+@media (prefers-color-scheme: light) {
+    :root[data-theme="system"] {
+        --theme-dropdown-bg: #e6e5e5;
+        --theme-dropdown-text: #222222;
+    }
+}
+
+:root[data-theme="red"] {
+    --theme-dropdown-bg: #6f1111;
+    --theme-dropdown-text: #ffffff;
+}
+
+:root[data-theme="blue"] {
+    --theme-dropdown-bg: #1f2f8c;
+    --theme-dropdown-text: #ffffff;
 }
 
 /* Position the dropdown below the theme button*/
 #theme-picker {
     position: absolute;
-    top: 100%;
-    left: 0;
+    top: calc(100% + 2px);
+    left: auto;
+    right: 0;
+    width: 150px;
     z-index: 10;
-    padding: 12px;
-    background-color: Canvas;
-    color:CanvasText;
+    padding: 4px;
+    background-color: var(--theme-dropdown-bg);
+    color: var(--theme-dropdown-text);
     border: 1px solid #627277;
-    border-radius: 6px;
+    border-radius: 8px;
     white-space: nowrap;
 }
-/* account formatting */
-.account-page {
-    max-width: 1000px;
+
+
+/* Credits page defaults */
+.credits-heading,
+.credits-intro {
+    color: white;
+}
+
+.credits-panel {
+    background-color: rgba(46, 46, 46, 0.8);
+}
+
+/* Light theme */
+:root[data-theme="light"] .credits-panel {
+    background-color: #e6e5e5;
+    color: #222222
+   
+}
+
+:root[data-theme="light"] .credits-panel .card-title,
+:root[data-theme="light"] .credits-panel .card-des {
+    color: #222222;
+}
+
+/* System Light */
+@media (prefers-color-scheme: light) {
+    :root[data-theme="system"] .credits-panel {
+        background-color: #e6e5e5;
+        color: #222222;
+    }
+
+    :root[data-theme="system"] .credits-panel .card-title,
+    :root[data-theme="system"] .credits-panel .card-des {
+        color: #222222;
+    }
+}
+
+/* Quiz setup: tags fill the left side */
+/* Quiz setup */
+.quiz-page {
+    max-width: 1200px;
     margin: 30px auto;
-    padding: 0 16px;
-    line-height: 1.6;
+    padding: 0 24px 32px;
 }
 
-.account-page details {
-    border: 1px solid currentColor;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 16px;
+.quiz-title {
+    margin: 0 0 30px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 50px;
 }
 
-.account-page summary {
-    cursor: pointer;
-    font-weight: bold;
+.quiz-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: stretch;
 }
 
-.account-page details > div {
-    border-top: 1px solid currentColor;
-    margin-top: 20px;
-    padding-top: 16px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    tab-size: 4;
-}
-
-.account-page details > div > div {
-    margin-top: 8px;
-}
-
-.account-page .btn {
-    margin-top: 10px;
-}
-
-/* saved quiz summary */
-
-.account-page .quiz-info {
-    display: block;
-    margin-top: 6px;
-    font-size: 0.95rem;
-    font-weight: normal;
-}
-
-.account-page .quiz-score {
-    display: block;
-    margin-top: 10px;
-    font-weight: bold;
-}
-
-.account-page .saved-question-text {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 1rem;
-    line-height: 1.5;
-    padding: 16px;
-    border: 1px solid currentColor;
-    border-radius: 8px;
-    margin: 12px 0 20px;
-}
-
-.account-page details > div > div {
-    margin-top: 12px;
-}
-
-/* Saved seed rows */
-.account-page .saved-seed {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    border: 1px solid currentColor;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-.account-page .saved-seed > div {
+.quiz-card {
     min-width: 0;
+    padding: 26px;
+    border: 1px solid #6a6a6a;
+    border-radius: 20px;
+    text-align: left;
 }
 
-.account-page .saved-seed p {
-    margin: 4px 0 0;
+.quiz-card h2 {
+    margin: 0;
+    font-size: 28px;
 }
 
-.account-page .seed-number {
-    font-size: 0.9rem;
+.quiz-description {
+    margin: 8px 0 22px;
+    opacity: 0.75;
+    line-height: 1.5;
+}
+
+.quiz-tag-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #6a6a6a;
+}
+
+.quiz-tag-actions > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.quiz-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Keep your existing button colors and shape. */
+.quiz-page button {
+    margin: 0;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.quiz-tags-panel {
+    max-height: 620px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Override the older tag-list spacing. */
+.quiz-page .tag-tree #tagSelection {
+    margin: 0;
+    padding: 0;
+}
+
+.quiz-page #tagSelection > li {
+    margin: 0;
+    padding: 10px 0;
+    border-bottom: 1px solid #6a6a6a;
+}
+
+.quiz-page .tag-group > summary {
+    padding: 8px 0;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+.quiz-page .tag-group > summary input {
+    margin: 0 12px 0 8px;
+}
+
+.quiz-page .tag-children {
+    margin: 6px 0 10px 24px;
+    padding-left: 24px;
+    border-left: 1px solid #6a6a6a;
+    list-style: none;
+}
+
+.quiz-page .tag-children li {
+    position: relative;
+    margin: 0;
+    padding: 10px 0;
+}
+
+/* Small branches beside the nested checkboxes. */
+.quiz-page .tag-children li::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    left: -24px;
+    width: 16px;
+    border-top: 1px solid #6a6a6a;
+}
+
+.quiz-page input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.quiz-page label {
     overflow-wrap: anywhere;
 }
 
-.account-page .saved-seed .btn {
+.quiz-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.quiz-setting-group {
+    min-width: 0;
     margin: 0;
+    padding: 0 0 24px;
+    border: 0;
+    border-bottom: 1px solid #6a6a6a;
 }
 
-/* keep the account heading and information closer together */
-
-.account-page h1 {
-    margin-bottm: 12px;
+.quiz-setting-group legend {
+    margin-bottom: 12px;
+    padding: 0;
+    font-size: 18px;
+    font-weight: bold;
 }
 
-.acount-page > p {
-    margin: 8px 0;
+.quiz-setting-group ul {
+    margin: 0 0 20px;
+    padding: 0;
+}
+
+.quiz-setting-group li {
+    margin: 0;
+    padding: 9px 0;
+}
+
+.quiz-setting-group input {
+    margin-right: 10px;
+}
+
+.quiz-setting-group button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+}
+
+.quiz-input-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.quiz-input-row label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.quiz-optional {
+    font-weight: normal;
+    opacity: 0.7;
+}
+
+.quiz-input-row input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #6a6a6a;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.quiz-page .quiz-start {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: auto;
+    padding: 14px;
+    font-size: 18px;
+}
+
+@media (max-width: 800px) {
+    .quiz-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .quiz-page {
+        padding: 0 16px 24px;
+    }
+
+    .quiz-card {
+        padding: 20px;
+    }
+
+    .quiz-tags-panel {
+        max-height: 450px;
+    }
+}
+
+/* quiz layout */
+@media (min-width: 801px) {
+    .quiz-page {
+        margin: 10px auto;
+        padding-bottom: 16px;
+    }
+
+    .quiz-title {
+        font-size: 34px;
+        margin-bottom: 12px;
+    }
+
+    .quiz-layout {
+        gap: 20px;
+    }
+
+    .quiz-card {
+        padding: 16px;
+    }
+
+    .quiz-card h2 {
+        font-size: 22px;
+    }
+
+    .quiz-description {
+        margin: 6px 0 14px;
+        font-size: 15px;
+    }
+
+    .quiz-tag-actions {
+        padding-bottom: 12px;
+    }
+
+    .quiz-tags-panel {
+         max-height: clamp(220px, calc(100dvh - 330px), 350px);
+    }
+
+    .quiz-page #tagSelection > li {
+        padding: 4px 0;
+    }
+
+    .quiz-page .tag-group > summary {
+        padding: 6px 0;
+        font-size: 16px;
+    }
+
+    .quiz-settings {
+        gap: 12px;
+    }
+
+    .quiz-setting-group {
+        padding-bottom: 10px;
+    }
+
+    .quiz-setting-group legend {
+        margin-bottom: 6px;
+        font-size: 16px;
+    }
+
+    .quiz-setting-group ul {
+        margin-bottom: 12px;
+    }
+
+    .quiz-setting-group li {
+        padding: 3px 0;
+    }
+
+    .quiz-setting-group button,
+    .quiz-action-buttons button {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .quiz-input-row label {
+        margin-bottom: 6px;
+        font-size: 14px;
+    }
+
+    .quiz-input-row input {
+        min-height: 38px;
+        padding: 8px 10px;
+    }
+
+    .quiz-page .quiz-start {
+        padding: 10px;
+        font-size: 16px;
+    }
+}
+
+/* Keep Login and Register beside each other. */
+.login-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px;
+}
+
+/* Use consistent sizing for links and submit buttons. */
+.login-page .btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 15px;
+}
+
+/* Matching small buttons. */
+.login-actions .btn {
+    width: 88px;
+    flex-shrink: 0;
+}
+
+/* Matching social sign-in buttons. */
+.login-page > .btn {
+    width: 175px;
 }

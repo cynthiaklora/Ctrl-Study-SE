@@ -1,63 +1,90 @@
 <!-- This is the quiz setup page. -->
 
 {% extends "base.html" %} {% block body %}
-<div>
-    <div style="margin: 15px">
-        <h1 style="text-align: center; font-size: 50px;font-family: monospace; margin-bottom: 10px;">Quiz</h1>
-        <div class="clear_bordering">
-            <form method="post">
-                {{ form.hidden_tag() }}
-                <div class="container">
-                    <!-- select question type -->
-                    <div class="column">
-                        <h3 style="font-size: 23px;">Select Question Types</h3>
-                        <div class="clear_bordering_fixed" style="margin-top:25px; margin-bottom: 45px;">
-                            {{ form.questionTypes(style="list-style:none") }}
-                        </div>
-                        <button type="button" id="select-all-questionTypes">Toggle All Question Types</button>
-                    </div>
+<div class="quiz-page">
+    <h1 class="quiz-title">Quiz</h1>
 
-                    <!-- select tags -->
-                    <div class="column">
-                        <h3 style="font-size: 23px;">Select Tags</h3>
-                        <div class="clear_bordering_fixed">
-                            {{ form.tagSelection(style="list-style:none") }}
-                        </div>
-                        <button type="button" id="select-all-tags">Toggle All Tags</button>
-                    </div>
+    <form method="post">
+        {{ form.hidden_tag() }}
 
-                    <!-- select languages -->
-                    <div class="column">
-                        <h3 style="font-size: 23px;">Select Languages</h3>
-                        <div class="clear_bordering_fixed" style="margin-top:45px; margin-bottom: 65px;">
-                            {{ form.languageSelection(style="list-style:none") }}
-                        </div>
-                        <button type="button" id="select-all-languages">Toggle All Languages</button>
+        <div class="quiz-layout">
+            <!-- Left: nested tags -->
+            <section class="quiz-card quiz-tags">
+                <h2>Quiz Tags</h2>
+                <p class="quiz-description">
+                    Choose what you want to practice.
+                </p>
+
+                <div class="quiz-tag-actions">
+                    <label>
+                        <input type="checkbox" id="all-tags-parent">
+                        All Tags
+                    </label>
+
+                    <div class="quiz-action-buttons">
+                        <button type="button" id="select-all-tags">
+                            Toggle All
+                        </button>
                     </div>
                 </div>
-                <div class="container h-aligning" style="margin-top: 25px">
-                    <!-- question count -->
-                    <div class="column">
-                        <h3 style="font-size: 23px;">Question Count</h3>
+
+                <!-- ****** add Search Feature ****** -->
+
+                <div class="quiz-tags-panel">
+                    <div class="tag-tree">
+                        {{ form.tagSelection(style="list-style:none") }}
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right: quiz settings -->
+            <section class="quiz-card quiz-settings">
+                <h2>Quiz Settings</h2>
+
+                <!-- Chose which question types to include -->
+                <fieldset class="quiz-setting-group">
+                    <legend>Question types</legend>
+
+                    {{ form.questionTypes(style="list-style:none") }}
+
+                    <button type="button" id="select-all-questionTypes">
+                        Toggle All Question Types
+                    </button>
+                </fieldset>
+
+                <fieldset class="quiz-setting-group">
+                    <legend>Languages</legend>
+
+                    {{ form.languageSelection(style="list-style:none") }}
+
+                    <button type="button" id="select-all-languages">
+                        Toggle All Languages
+                    </button>
+                </fieldset>
+
+                <div class="quiz-input-row">
+                    <div>
+                        <label for="{{ form.questionCount.id }}">
+                            Question Count
+                        </label>
                         {{ form.questionCount }}
                     </div>
 
-                    <!-- seed -->
-                    <div class="column">
-                        <h3 style="font-size: 23px;">Seed</h3>
-                        {{ form.seed }}
+                    <div>
+                        <label for="{{ form.seed.id }}">
+                            Seed <span class="quiz-optional">(optional)</span>
+                        </label>
+                        {{ form.seed(placeholder="Random") }}
                     </div>
                 </div>
+
+                {{ form.submit(class="btn quiz-start", value="Start Quiz") }}
+            </section>
         </div>
-    </div>
-    <br>
-    <hr>
-    <div style="text-align: center; margin: 20px;">
-        {{ form.submit(class="btn") }}
-    </div>
     </form>
 
     <script>
+        // set every checkbox in the group to the opposite of the first checkbox
         function toggleCheckboxes(query) {
             var checkboxes = document.querySelectorAll(query);
             var toggle = (checkboxes[0].checked == true) ? false : true;
@@ -66,22 +93,167 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
-                toggleCheckboxes('input[name="questionTypes"]');
-            });
-            document.getElementById('select-all-tags').addEventListener('click', function (event) {
-                toggleCheckboxes('input[name="tagSelection"]');
-            });
-            document.getElementById('select-all-languages').addEventListener('click', function (event) {
-                toggleCheckboxes('input[name="languageSelection"]');
-            });
-
+        // connect the togle all buttons to their checkbox groups
+        document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
             toggleCheckboxes('input[name="questionTypes"]');
-            toggleCheckboxes('input[name="tagSelection"]');
-            toggleCheckboxes('input[name="languageSelection"]');
-
         });
+        document.getElementById('select-all-tags').addEventListener('click', function (event) {
+            toggleCheckboxes('input[name="tagSelection"]');
+        });
+        document.getElementById('select-all-languages').addEventListener('click', function (event) {
+            toggleCheckboxes('input[name="languageSelection"]');
+        });
+
+        // toggle each groups inital selection based on the first checkbox
+        toggleCheckboxes('input[name="questionTypes"]');
+        toggleCheckboxes('input[name="tagSelection"]');
+        toggleCheckboxes('input[name="languageSelection"]');
+
+        const parentTag = document.getElementById("all-tags-parent");
+        const childTags = [
+            ...document.querySelectorAll('input[name="tagSelection"]')
+        ];
+
+        // update the parent tag checkbox based on the initial state of the child tags
+        function updateParentTag() {
+            const selected = childTags.filter(tag => tag.checked).length;
+
+            parentTag.checked =
+                childTags.length > 0 && selected === childTags.length;
+
+            parentTag.indeterminate =
+                selected > 0 && selected < childTags.length;
+        }
+
+        // select or clear every tag based on the parent checkbox
+        parentTag.addEventListener("change", function () {
+            childTags.forEach(tag => {
+                tag.checked = parentTag.checked;
+            });
+
+            updateParentTag();
+        });
+
+        // refresh all tags when any child tag changes
+        childTags.forEach(tag => {
+            tag.addEventListener("change", updateParentTag);
+        });
+
+        // refresh all tags after the toggle all button is clicked
+        document.getElementById("select-all-tags")
+            .addEventListener("click", updateParentTag);
+
+        updateParentTag();
+
+        const tagList = document.getElementById("tagSelection");
+
+        // Read the real tag IDs and categories supplied by Flask.
+        const databaseTags = {{ tags | tojson }};
+        const categories = new Map();
+
+        // group tag id's by category using other tags
+        databaseTags.forEach(tag => {
+            const category = String(tag.category ?? "").trim() || "Other Tags";
+
+            if (!categories.has(category)) {
+                categories.set(category, []);
+            }
+
+            categories.get(category).push(String(tag.id));
+        });
+
+        // convert the categories into a list and sort them aphabetically
+        const tagGroups = Array.from(
+            categories,
+            ([name, ids]) => ({ name, ids })
+        ).sort((a, b) => a.name.localeCompare(b.name));
+
+        // save the original tag rows before moving them into caetegories
+        const originalTagRows = [...tagList.children];
+        const groupControls = [];
+
+        // build a collapsible section for each categroy
+        tagGroups.forEach(group => {
+            const matchingRows = originalTagRows.filter(row => {
+                const checkbox = row.querySelector('input[name="tagSelection"]');
+
+                return checkbox && group.ids.includes(checkbox.value);
+            });
+
+            // skip groups with no matching rows
+            if (matchingRows.length === 0) return;
+
+            // create the categorys list item and collapsible section
+            const groupRow = document.createElement("li");
+            const details = document.createElement("details");
+            details.className = "tag-group";
+
+            const summary = document.createElement("summary");
+
+            const groupCheckbox = document.createElement("input");
+            groupCheckbox.type = "checkbox";
+            groupCheckbox.setAttribute("aria-label", `Select all ${group.name}`);
+
+            const groupName = document.createElement("span");
+            groupName.textContent = group.name;
+
+            summary.append(groupCheckbox, groupName);
+
+            // move the category's existing tag rows into a nested list
+            const nestedList = document.createElement("ul");
+            nestedList.className = "tag-children";
+
+            matchingRows.forEach(row => nestedList.appendChild(row));
+
+            details.append(summary, nestedList);
+            groupRow.appendChild(details);
+            tagList.appendChild(groupRow);
+
+            const nestedCheckboxes = [
+                ...nestedList.querySelectorAll('input[name="tagSelection"]')
+            ];
+
+            // show wether all, some, or none of the category's tags are selected
+            function updateGroupCheckbox() {
+                const selected = nestedCheckboxes.filter(box => box.checked).length;
+
+                groupCheckbox.checked = selected === nestedCheckboxes.length;
+                groupCheckbox.indeterminate =
+                    selected > 0 && selected < nestedCheckboxes.length;
+            }
+
+            // select or clear all tags in this category when its checkbox changes
+            groupCheckbox.addEventListener("change", function () {
+                nestedCheckboxes.forEach(box => {
+                    box.checked = groupCheckbox.checked;
+                });
+
+                if (groupCheckbox.checked) details.open = true;
+
+                updateGroupCheckbox();
+                updateParentTag();
+            });
+
+            // refresh the category checkbox when any of its child(individual) tags change
+            nestedCheckboxes.forEach(box => {
+                box.addEventListener("change", updateGroupCheckbox);
+            });
+
+            groupControls.push(updateGroupCheckbox);
+            updateGroupCheckbox();
+        });
+
+        // update all category checkboxes based on their child tags
+        function updateAllGroups() {
+            groupControls.forEach(updateGroup => updateGroup());
+        }
+
+        parentTag.addEventListener("change", updateAllGroups);
+
+        document.getElementById("select-all-tags")
+            .addEventListener("click", updateAllGroups);
+
+        // ********** Add Search Feature ***********
     </script>
 </div>
 
