@@ -33,8 +33,9 @@ class QuestionContainer:
     type: str
     language: str
     title: str
+    id: int | None = None
 
-    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str):
+    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, id: int | None = None):
         self.prompt = prompt
         self.question = question
         self.correct = correct
@@ -43,6 +44,7 @@ class QuestionContainer:
         self.type = type
         self.language = language
         self.title = title
+        self.id = id
 
     def __hash__(self):
         return hash(
@@ -69,6 +71,7 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
         qs = supabase_client.FetchQuestionsByIds(ids)
         for c in qs:
             questions.append({
+                    "id": c.get("id"),
                     "type": c["question_type"],
                     "template": c["prompt_template"],
                     "prompt": c["question_template"],
@@ -109,7 +112,8 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
             answer=gq["answers"],
             type=gq["type"],
             language=qu["language"],
-            title=qu["title"]
+            title=qu["title"],
+            id=qu["id"]
         ))
 
     return questions
