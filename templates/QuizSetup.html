@@ -86,6 +86,7 @@
         </div>
     </form>
 
+    <script id="database-tags" type="application/json">{{ tags | tojson }}</script>
     <script>
         function toggleCheckboxes(query, visibleOnly) {
             var checkboxes = Array.from(document.querySelectorAll(query));
@@ -187,7 +188,7 @@
         const tagList = document.getElementById("tagSelection");
 
         // Read the real tag IDs and categories supplied by Flask.
-        const databaseTags = {{ tags | tojson }};
+        const databaseTags = JSON.parse(document.getElementById("database-tags").textContent);
         const categories = new Map();
 
         // group tag id's by category using other tags
