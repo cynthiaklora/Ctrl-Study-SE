@@ -337,9 +337,15 @@ def quizComplete():
 
     url = "/quiz?" + urlencode(session["quizParameters"], doseq=True)
 
+    # Indexes of the questions the user flagged while taking the quiz (ignores anything out of range)
+    flagged = sorted(i for i in set(session.get("flaggedQuestions", [])) if 0 <= i < len(forms))
+
+    practiceMode = session.get("practiceMode")
+
     # Auto saves the quiz seed, question count, tags, types, and languages
     # save-quiz below lets users save the full quiz including questions, answers, feedback, etc
-    if session.get("userID"):
+    # Practice quizzes (flagged questions) are built from existing questions, so a seed can't recreate them: no autosave row
+    if session.get("userID") and not practiceMode:
         if createQuizRow() is None:
             error = "Could not autosave quiz."
 
@@ -350,6 +356,8 @@ def quizComplete():
         givenAnswers = session["quizGivenAnswers"],
         correctness = session["correctness"],
         forms = forms,
+        flagged = flagged,
+        practiceMode = practiceMode,
         correctPercent = correctPercent,
         retakeQuizURL = url,
         error=error
@@ -408,6 +416,8 @@ def question():
             form=form,
             status="Correct" if isCorrect else "Incorrect",
             showingAnswer=True,
+            practiceMode=session.get("practiceMode"),
+            isFlagged=session["progress"] in session.get("flaggedQuestions", []),
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
         )
@@ -418,9 +428,65 @@ def question():
             form=form,
             status="",
             showingAnswer=False,
+            practiceMode=session.get("practiceMode"),
+            isFlagged=session["progress"] in session.get("flaggedQuestions", []),
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
         )
+
+def startPracticeQuiz(indexes: list[int], label: str):
+    """Starts a brand new quiz made of questions from the quiz that was just finished.
+    The questions are reused exactly as they were generated, so nothing needs to be re-fetched."""
+    questions = session.get("quizQuestions") or []
+    chosen = [questions[i] for i in indexes if 0 <= i < len(questions)]
+    if not chosen:
+        return redirect(url_for("quizComplete"))
+
+    params = session.get("quizParameters")
+    seed = session.get("seed")
+
+    # Wipe the old quiz's progress, then load the new one (same keys quiz() clears)
+    for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
+                "quizID", "quizQuestionsSaved", "flaggedQuestions", "practiceMode"]:
+        session.pop(key, None)
+
+    session["quizQuestions"] = chosen
+    session["quizParameters"] = params      # kept so the results page still works
+    session["seed"] = seed
+    session["practiceMode"] = label
+    session.modified = True
+    return redirect(url_for("question"))
+
+@app.route("/practice-flagged", methods=["POST"])
+def practiceFlagged():
+    """Starts a new quiz with only the questions the user flagged for review."""
+    questions = session.get("quizQuestions")
+    if not questions or session.get("progress", 0) < len(questions):
+        return redirect(url_for("quiz"))
+
+    flagged = sorted(i for i in set(session.get("flaggedQuestions", [])) if 0 <= i < len(questions))
+    return startPracticeQuiz(flagged, "Practicing flagged questions")
+
+@app.route("/flag-question", methods=["POST"])
+def flagQuestion():
+    """Toggles the flag on the question currently being shown. Called with fetch() so the
+    page doesn't reload (a reload would throw away whatever answer is half-selected)."""
+    questions = session.get("quizQuestions")
+    progress = session.get("progress", 0)
+    if not questions or progress >= len(questions):
+        return jsonify(status="error", message="No question is currently open."), 400
+
+    flagged = list(session.get("flaggedQuestions", []))
+    if progress in flagged:
+        flagged.remove(progress)
+        isFlagged = False
+    else:
+        flagged.append(progress)
+        isFlagged = True
+
+    session["flaggedQuestions"] = flagged
+    session.modified = True
+    return jsonify(status="success", flagged=isFlagged, count=len(flagged))
 
 @app.route("/quiz", methods=["GET", "POST"])
 def quiz():
@@ -436,7 +502,7 @@ def quiz():
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
     for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved"]:
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "flaggedQuestions", "practiceMode"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
