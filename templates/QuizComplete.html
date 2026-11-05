@@ -29,8 +29,7 @@
             <fieldset disabled>
                 {{ form.answer(style="list-style:none; white-space: pre-line;", class="answer") }}
             </fieldset>
-            <h3 style="color: {{ " green" if correctness[loop.index0] else "red" }}">{{ "Correct" if
-                correctness[loop.index0] else "Incorrect" }}</h3>
+            {% if correctness[loop.index0] %}<h3 style="color:green;">Correct</h3>{% else %}<h3 style="Color: red" ;>Incorrect</h3>{% endif %}
             <div class="slight_clear_bordering">
                 {% if correctness[loop.index0] == False %}
                 <p><i>The correct answer was:</i></p>

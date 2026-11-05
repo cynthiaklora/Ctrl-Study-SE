@@ -29,7 +29,7 @@
             {% endif %}
     <div class="headerContainer">
         <div style="margin-bottom: 15px; padding-top: 5px; top:0; margin: 8px; margin-top: 0;">
-            <!-- add the theme button beside the home button-->
+            <!-- -->
             <strong>Ctrl Study</strong> |
             <a href="/" class="btn">Home</a>
 
@@ -41,8 +41,6 @@
             <a href="/logout" class="btn">Logout</a>
             <a href="/account" class="btn">Account</a>
             {% endif %}
-            {% block headerbar %}
-            {% endblock %}
 
             <div class = "theme-dropdown" >
                  <button 
@@ -51,19 +49,19 @@
                 aria-expanded = "false"
                 aria-controls = "theme-picker"
                 >Theme
-                <!-- this is where the theme dropdown with options is created-->
             </button>
-            <span id = "theme-picker" hidden>
-                <label for = "theme-select" > Choose theme:</label>
-                <select id = "theme-select">
-                    <option value = "system">System default</option>
-                    <option value = "light">Light</option>
-                    <option value = "dark" >Dark</option>
-                    <option value = "blue" >Blue</option>
-                    <option value = "red" >Red</option>
-                </select>
+            <!-- Theme options stay hidden until the Theme button is clicked -->
+            <span id="theme-picker" hidden>
+                <button type="button" data-theme-choice="system">System default</button>
+                <button type="button" data-theme-choice="light">Light</button>
+                <button type="button" data-theme-choice="dark">Dark</button>
+                <button type="button" data-theme-choice="blue">Blue</button>
+                <button type="button" data-theme-choice="red">Red</button>
             </span>
             </div>
+        <!---->
+            {% block headerbar %}
+            {% endblock %}
         </div>
         <hr />
     </div>
@@ -72,24 +70,65 @@
         {% block body %}
         {% endblock %}
     </div>
-    <!--shows the theme button when its clicked-->
+    <!--Theme menu behavior and saved preferences-->
     <script>
-        const button = document.getElementById("mode-toggle");
-        const picker = document.getElementById("theme-picker");
-        const select = document.getElementById("theme-select");
-        select.value = document.documentElement.dataset.theme;
+    const button = document.getElementById("mode-toggle");
+    const picker = document.getElementById("theme-picker");
+    const choices = [...picker.querySelectorAll("[data-theme-choice]")];
 
-        // updates the toggle when clicked
-        button.onclick = () => {
-            picker.hidden = !picker.hidden;
-            button.setAttribute("aria-expanded", String(!picker.hidden))
-        };
+    // mark the actice theme for accessibilty and the css checkmark.
+    function updateSelection() {
+        choices.forEach(choice => {
+            choice.setAttribute(
+                "aria-pressed",
+                String(choice.dataset.themeChoice ===
+                    document.documentElement.dataset.theme)
+            );
+        });
+    }
 
-        // this applies the selected theme to <html> 
-        select.onchange = () => {
-            document.documentElement.dataset.theme = select.value;
-            localStorage.setItem("theme", select.value);
+    // hide the menu and updare the triggers expanded state.
+    function closePicker() {
+        picker.hidden = true;
+        button.setAttribute("aria-expanded", "false");
+    }
+
+    // open or close the menu wwhen the theme button is clicked
+    button.onclick = () => {
+        picker.hidden = !picker.hidden;
+        button.setAttribute("aria-expanded", String(!picker.hidden));
+    };
+
+    // apply and save the selcted theme, then close the menu-even if unchanged
+    choices.forEach(choice => {
+        choice.onclick = () => {
+            const theme = choice.dataset.themeChoice;
+
+            document.documentElement.dataset.theme = theme;
+            localStorage.setItem("theme", theme);
+            updateSelection();
+            closePicker();
+            button.focus();
         };
-    </script>
+    });
+
+    // close the menue when a click occurs outside the theme controls
+    document.addEventListener("click", event => {
+        if (!button.parentElement.contains(event.target)) {
+            closePicker();
+        }
+    });
+
+    // close the theme menu and return focus to its button if escape is pressed
+    picker.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            closePicker();
+            button.focus();
+        }
+    });
+
+    // marks the currently selected theme in the theme picker
+    updateSelection();
+</script>
 </body>
 </html>

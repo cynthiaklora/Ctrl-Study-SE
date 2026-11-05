@@ -6,16 +6,17 @@
 <div class="bg"></div>
 <div class="bg bg2"></div>
 <div class="bg bg3"></div>
-<h1 style="text-align: center; font-size: 65px;font-family: monospace;">Credits</h1>
-<p style="text-align: center;;">
+<!-- Heading and introduction use dedicated classes for text colors -->
+<h1 class= "credits-heading" style="text-align: center; font-size: 65px;font-family: monospace;">Credits</h1>
+<p class="credits-intro" style="text-align: center;;">
     Ctrl-Study is a group project developed for our software engineering class. We had a lot of fun making it!
     <br><br>It was a dream-team project and everyone ended up with something to be proud of.
     <br>
 </p>
 
-<!-- developers -->
-<div class="clear_bordering"
-    style="margin-top: 20px; padding-top: 30px; padding-top: 30px; background-color: rgba(46, 46, 46, 0.8);">
+<!-- developers cards; credits-panel supplies the theme-dependent colors -->
+<div class="clear_bordering credits-panel"
+    style="margin-top: 20px; padding-top: 30px; padding-top: 30px;">
 
     <div class="container" style="text-align: center">
         <!-- Andrew Anguish -->
@@ -118,7 +119,7 @@
 </div>
 
 <!-- requirements -->
-<div class="clear_bordering" style="margin-top: 20px; background-color: rgba(46, 46, 46, 0.8);">
+<div class="clear_bordering credits-panel" style="margin-top: 20px;">
     <h3>Packages</h3>
     <p><i>Our <samp>requirements.txt</samp> appears as such:</i></p>
     <pre><code>
