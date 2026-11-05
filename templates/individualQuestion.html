@@ -11,6 +11,7 @@
 {% block body %}
 <div class="clear_bordering">
 
+    {% if practiceMode %}<p><i>{{ practiceMode }}</i></p>{% endif %}
     <h1>Question {{ currentQuestion }}</h1>
     <h3>{{ form.language }}</h3>
     <p><b>{{ form.prompt }}</b></p>
@@ -44,6 +45,8 @@
         {% else %}
         <button type="submit" name="action" value="submit" id="submit-btn" disabled>Submit</button>
         {% endif %}
+        {# type="button" so it never submits the form; the click is handled by the script below #}
+        <button type="button" id="flag-btn" data-flagged="{{ 'true' if isFlagged else 'false' }}">{{ "Unflag" if isFlagged else "Flag for review" }}</button>
     </form>
 </div>
 {% if current_user.is_authenticated and current_user.username == "ctrl_admin" %}
@@ -85,6 +88,27 @@
         fieldset.addEventListener('input', checkAnswer);
         fieldset.addEventListener('change', checkAnswer);
         checkAnswer();
+    }
+
+    // Flag / unflag this question for review at the end of the quiz (no page reload)
+    const flagBtn = document.getElementById('flag-btn');
+    function paintFlagBtn(flagged) {
+        flagBtn.dataset.flagged = flagged ? 'true' : 'false';
+        flagBtn.textContent = flagged ? '\u{1F6A9} Flagged (click to unflag)' : '\u{1F6A9} Flag for review';
+    }
+    if (flagBtn) {
+        paintFlagBtn(flagBtn.dataset.flagged === 'true');
+        flagBtn.addEventListener('click', function () {
+            flagBtn.disabled = true;
+            fetch('/flag-question', {method: 'POST'})
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(data.message || `Server error ${response.status}`);
+                    paintFlagBtn(data.flagged);
+                })
+                .catch(error => alert(error.message || 'Could not flag this question.'))
+                .finally(() => { flagBtn.disabled = false; });
+        });
     }
 
     // Keep scroll position between submits!
