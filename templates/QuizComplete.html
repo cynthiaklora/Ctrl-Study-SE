@@ -11,15 +11,58 @@
             <p>
                 You scored a <strong>{{ "%.2f"|format(correctPercent * 100) }} %</strong>
             </p>
+            {% if practiceMode %}
+            <p><i>{{ practiceMode }}</i></p>
+            {% else %}
             <a class="share-quiz-link" href="{{ retakeQuizURL }}">Share this quiz: copy this link!</a>
+            {% endif %}
         </div>
+
+        <!-- practice button: starts a new quiz made of the flagged questions -->
+        {% if flagged %}
+        <form action="/practice-flagged" method="post" style="margin: 0;">
+            <button type="submit">&#128681; Quiz me on my flagged questions ({{ flagged|length }})</button>
+        </form>
+        {% endif %}
     </div>
+
+    <!-- flagged questions: only shown when the user flagged something -->
+    {% if flagged %}
+    <div class="clear_bordering" id="flagged-review" style="padding-top: 5px; margin-bottom: 30px; tab-size: 4;">
+        <h1 style="font-family: monospace;">&#128681; Review Flagged Questions ({{ flagged|length }})</h1>
+        {% for i in flagged %}
+        {% set form = forms[i] %}
+        <div class="slight_clear_bordering" style="margin-bottom: 20px;">
+            <h3 style="margin-top: 0;">
+                Question {{ i + 1 }} &middot; {{ form.language }}
+                <span style="color: {{ 'green' if correctness[i] else 'red' }}">&mdash; {{ "Correct" if correctness[i] else "Incorrect" }}</span>
+            </h3>
+            <p><b>{{ form.prompt }}</b></p>
+            {% if form.inline_blanks %}
+            <fieldset disabled style="border: none; padding: 0;">
+                <div style="width: fit-content; max-width: 100%; overflow-x: auto;">{{ form.format_html()|safe }}</div>
+            </fieldset>
+            {% else %}
+            <div style="width: fit-content; max-width: 100%; overflow-x: auto;">{{ form.format_html()|safe }}</div>
+            {% endif %}
+            <p><i>The correct answer {{ "was" if not correctness[i] else "is" }}:</i></p>
+            <ul>
+                {% for val in form.getCorrect() %}
+                <li style="white-space: pre-line;">{{ val }}</li>
+                {% endfor %}
+            </ul>
+            <p>{{ form.feedback }}</p>
+            <a href="#question-{{ i + 1 }}">See your full answer below</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- section for quiz with results and feedback -->
     <div class="clear_bordering" style="padding-top:5px">
         <hr style="margin-top: 20px;">
         {% for form in forms %}
-        <h1>Question {{ loop.index }}</h1>
+        <h1 id="question-{{ loop.index }}">Question {{ loop.index }}{% if loop.index0 in flagged %} &#128681;{% endif %}</h1>
         <h3>{{ form.language }}</h3>
         <p><b>{{ form.prompt }}</b></p>
         {% if not form.inline_blanks %}
@@ -52,7 +95,9 @@
     </div>
 </div>
 
+{% if not practiceMode %}
 <p style="color: grey; text-align: center;"><i>Seed: {{ session["seed"] }}</i></p>
+{% endif %}
 <button id="complete-quiz-save">Save Full Quiz</button>
 
 <script>
