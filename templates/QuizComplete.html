@@ -47,7 +47,11 @@
 </div>
 
 <p style="color: grey; text-align: center;"><i>Seed: {{ session["seed"] }}</i></p>
+{% if current_user.is_authenticated %}
 <button id="complete-quiz-save">Save Full Quiz</button>
+{% else %}
+<p>Log In to be able to save your quizzes!</p>
+{% endif %}
 
 <script>
     document.getElementById('complete-quiz-save').addEventListener('click', function() {
