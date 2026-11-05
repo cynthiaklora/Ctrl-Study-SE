@@ -33,8 +33,9 @@ class QuestionContainer:
     type: str
     language: str
     title: str
+    id: int | None = None
 
-    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str):
+    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, id: int | None = None):
         self.prompt = prompt
         self.question = question
         self.correct = correct
@@ -43,6 +44,7 @@ class QuestionContainer:
         self.type = type
         self.language = language
         self.title = title
+        self.id = id
 
     def __hash__(self):
         return hash(
@@ -53,7 +55,7 @@ class QuestionContainer:
         )
 
 def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: list[str] = [], languages: list[str] = []) -> list[QuestionContainer] | None:
-    def getDbQuestions() -> list[dict[str, str]] | None:
+    def getDbQuestions() -> list[dict[str, Any]] | None:
         #print(f"Fetching question with tags: {tags} and types: {types} and languages: {languages}")
         print(f"Using seed {seed}")
         options = supabase_client.FetchFilteredQuestions(tags=tags, questionTypes=types, languages=languages)
@@ -69,6 +71,7 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
         qs = supabase_client.FetchQuestionsByIds(ids)
         for c in qs:
             questions.append({
+                    "id": c.get("id"),
                     "type": c["question_type"],
                     "template": c["prompt_template"],
                     "prompt": c["question_template"],
@@ -79,16 +82,21 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
 
         return questions
 
-    def shuffleAnswers(answers: list[tuple[str, str]], seed: int) -> Any:
-        opt = answers
-        random.seed(seed)
-        random.shuffle(opt)
-        return cast(Any, opt)
-
     q = getDbQuestions()
     if q is None:
         return None
 
+    return _buildQuestions(q, seed)
+
+def shuffleAnswers(answers: list[tuple[str, str]], seed: int) -> Any:
+    opt = answers
+    random.seed(seed)
+    random.shuffle(opt)
+    return cast(Any, opt)
+
+# Turns raw question rows (type/template/prompt/feedback/language/title) into generated QuestionContainers.
+# Shared by the random quiz and the admin hand-picked quiz so both generate questions the same way.
+def _buildQuestions(q: list[dict[str, Any]], seed: int) -> list[QuestionContainer]:
     questions = []
 
     random.seed(seed)
@@ -109,10 +117,31 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
             answer=gq["answers"],
             type=gq["type"],
             language=qu["language"],
-            title=qu["title"]
+            title=qu["title"],
+            id=qu["id"]
         ))
 
     return questions
+
+# ADMIN TESTING: builds a quiz from exactly the given question ids, in the given order (no random picking).
+def getQuestionsByIds(ids: list[int], seed: int) -> list[QuestionContainer] | None:
+    rows = supabase_client.FetchQuestionsByIds(ids)
+    if not rows:
+        return None
+
+    q = [
+        {
+            "type": c["question_type"],
+            "template": c["prompt_template"],
+            "prompt": c["question_template"],
+            "feedback": c["feedback_template"],
+            "language": c["language"],
+            "title": c["title"],
+            "id": c["id"]
+        }
+        for c in rows
+    ]
+    return _buildQuestions(q, seed)
 
 def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> QuestionForm:
 
