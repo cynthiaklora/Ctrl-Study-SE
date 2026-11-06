@@ -37,6 +37,19 @@ class SetupQuizForm(FlaskForm):
         self.tagSelection.choices = [(id, name) for (id,name) in tags]
         self.languageSelection.choices = [(l, l) for l in languages]
 
+class CodeSandboxForm(FlaskForm):
+    language = RadioField("Language", validators=[InputRequired()])
+    code = TextAreaField("Code", validators=[DataRequired(), Length(max=20000)])
+    submit = SubmitField("Run")
+
+    def __init__(self, languages: list[str], *args, **kwargs):
+        super(CodeSandboxForm, self).__init__(*args, **kwargs)
+        self.language.choices = [(l, l) for l in languages]
+
+        # preselect the first language on the initial page load only
+        if self.language.data is None and not self.is_submitted():
+            self.language.data = languages[0]
+
 # QUESTION TYPES
 
 # generic question form, from which all questions descend
@@ -167,15 +180,28 @@ class ShortAnswerQuestionForm(QuestionForm[TextAreaField]):
         self.feedback = feedback
         self.language = language
 
-class CodeSandboxForm(FlaskForm):
-    language = RadioField("Language", validators=[InputRequired()])
-    code = TextAreaField("Code", validators=[DataRequired(), Length(max=20000)])
-    submit = SubmitField("Run")
+class ProgrammingQuestionForm(QuestionForm[TextAreaField]):
+    prompt: str
+    question: str
+    correct: list[str]
+    feedback: str
+    answer: TextAreaField = TextAreaField("Code", validators=[DataRequired()], default=None)
+    instructions: str = "Write your code below."
+    submit = SubmitField("Submit")
 
-    def __init__(self, languages: list[str], *args, **kwargs):
-        super(CodeSandboxForm, self).__init__(*args, **kwargs)
-        self.language.choices = [(l, l) for l in languages]
-
-        # preselect the first language on the initial page load only
-        if self.language.data is None and not self.is_submitted():
-            self.language.data = languages[0]
+    def __init__(
+        self,
+        prompt: str,
+        question: str,
+        correct: list[str],
+        language: str,
+        feedback: str,
+        *args,
+        **kwargs,
+    ):
+        super(ProgrammingQuestionForm, self).__init__(*args, **kwargs)
+        self.prompt = prompt
+        self.question = question
+        self.correct = correct
+        self.feedback = feedback
+        self.language = language
