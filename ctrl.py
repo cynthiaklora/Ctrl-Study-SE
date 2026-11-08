@@ -371,7 +371,7 @@ def quizComplete():
     )
 
 @app.route("/question", methods=["GET", "POST"])
-@limiter.limit("10/minute")
+@limiter.limit("40/minute")
 def question():
     if "quizQuestions" not in session or session["quizQuestions"] is None:
         print("User tried to use quiz question page without questions in session")
