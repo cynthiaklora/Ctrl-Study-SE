@@ -54,7 +54,7 @@
         <button type="submit" name="action" value="next">Next</button>
         {% else %}
         <button type="submit" name="action" value="submit" id="submit-btn" disabled>Submit</button>
-        {% endif %// TODO: call your add function and print the result}
+        {% endif %}
     </form>
 </div>
 {% if current_user.is_authenticated and current_user.username == "ctrl_admin" %}
