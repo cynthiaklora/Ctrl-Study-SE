@@ -50,6 +50,7 @@ BASE_OPTS = dict(
     log_config=docker.types.LogConfig(type="json-file", config={"max-size": "1m", "max-file": "1"}),
 )
 
+LANGUAGE_ALIASES = {"C++": "cpp", "Python": "python"}
 LANGUAGES = {
     "python": {
         "image": "python:3.12-slim",
@@ -73,6 +74,7 @@ def _truncate(text: str) -> str:
     return text
 
 def runCode(language: str, code: str) -> dict:
+    language = LANGUAGE_ALIASES.get(language, language)
     if language not in LANGUAGES:
         raise RunnerError("Unsupported language.")
     if not code.strip():

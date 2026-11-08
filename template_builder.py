@@ -56,6 +56,10 @@ def formatPreview(payload: dict[str, Any]) -> str:
     else:
         answerLines = str(answers)
 
+    # Pulls starter code if present. Only programming questions have it, so the block is left out entirely when it's None
+    starterCode = payload.get("starterCode")
+    starterBlock = f"STARTER CODE:\n{starterCode}\n\n" if starterCode else ""
+
     # Pulls incorrect answers and formats them as bullet-like lines
     incorrect = payload.get("incorrect", [])
     incorrectLines = "\n".join(f"- {item}" for item in incorrect) or "(none)"
@@ -68,6 +72,7 @@ def formatPreview(payload: dict[str, Any]) -> str:
         f"{prompt}\n\n"
         "QUESTION:\n"
         f"{payload['question']}\n\n"
+        f"{starterBlock}"
         "ANSWER(S):\n"
         f"{answerLines}\n\n"
         "INCORRECT OPTIONS:\n"

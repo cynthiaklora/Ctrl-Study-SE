@@ -2,7 +2,7 @@ from Frontend.forms import QuestionForm
 import random
 from random import choice
 from typing import Any, cast
-from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm
+from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm
 from parser_engine import generateQuestion
 # from flask import session
 from dataclasses import dataclass
@@ -33,8 +33,9 @@ class QuestionContainer:
     type: str
     language: str
     title: str
+    starterCode: str | None
 
-    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str):
+    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, starterCode: str | None = None):
         self.prompt = prompt
         self.question = question
         self.correct = correct
@@ -43,6 +44,7 @@ class QuestionContainer:
         self.type = type
         self.language = language
         self.title = title
+        self.starterCode = starterCode
 
     def __hash__(self):
         return hash(
@@ -109,7 +111,8 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
             answer=gq["answers"],
             type=gq["type"],
             language=qu["language"],
-            title=qu["title"]
+            title=qu["title"],
+            starterCode=gq.get("starterCode"),
         ))
 
     return questions
@@ -154,6 +157,16 @@ def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> Ques
                 correct=question.correct,
                 feedback=question.feedback,
                 language=question.language,
+                prefix=label
+            )
+        case "programming":
+            form = ProgrammingQuestionForm(
+                prompt=question.prompt,
+                question=question.question,
+                correct=question.correct,
+                feedback=question.feedback,
+                language=question.language,
+                starterCode=question.starterCode,
                 prefix=label
             )
         case _:

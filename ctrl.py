@@ -12,7 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request, jsonify                             # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm, CodeSandboxForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm
 
 from datetime import timedelta
 from flask_session import Session
@@ -344,8 +344,8 @@ def quizComplete():
     for index, question in enumerate(session["quizQuestions"]):
         form = QuestionFetch.getQuestionForm(question, label=f"Answers{index}")
         data: list = session["quizGivenAnswers"].get(index, [])
-        if isinstance(form, RadioQuestionForm) or isinstance(form, ShortAnswerQuestionForm):
-            form.answer.data = data[0]
+        if isinstance(form, (RadioQuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm)):
+            form.answer.data = data[0] if data else ""
         else:
             form.answer.data = data
         forms.append(form)
@@ -371,6 +371,7 @@ def quizComplete():
     )
 
 @app.route("/question", methods=["GET", "POST"])
+@limiter.limit("10/minute")
 def question():
     if "quizQuestions" not in session or session["quizQuestions"] is None:
         print("User tried to use quiz question page without questions in session")
@@ -400,20 +401,45 @@ def question():
     question = session["quizQuestions"][session["progress"]]
     form = QuestionFetch.getQuestionForm(question)
 
+    runError = None   # set if the sandbox couldn't run (busy / docker down)
+
     if action == "submit" and session["SingleQuestionState"] == "NewQuestion" and form.validate_on_submit():
         correct = form.correct
         answers = form.answer.data
         if not isinstance(answers, list):
             answers = [answers]
         answers = [answer.replace('\r\n', '\n') for answer in answers]
-        isCorrect = set(answers) == set(correct)
-        session["quizGivenAnswers"][session["progress"]] = answers
-        session["correctness"][session["progress"]] = isCorrect
-        session["SingleQuestionState"] = "Answered"
-        session.modified = True
+
+        graded = True
+        if question.type == "programming":
+            try:
+                run = code_runner.runCode(question.language, answers[0])
+                got = [l.strip() for l in run["stdout"].splitlines() if l.strip()]
+                expected = [c.strip() for c in correct]
+                isCorrect = (not run["timedOut"] and run["exitCode"] == 0 and got == expected)
+                session.setdefault("quizRunResults", {})[session["progress"]] = run
+            except code_runner.RunnerError as e:
+                runError = str(e)   # "Server is busy" / "Docker is not available"
+                graded = False      # stay in NewQuestion so their code isn't lost
+        else:
+            isCorrect = set(answers) == set(correct)
+
+        if graded:
+            session["quizGivenAnswers"][session["progress"]] = answers
+            session["correctness"][session["progress"]] = isCorrect
+            session["SingleQuestionState"] = "Answered"
+            session.modified = True
 
     if session["SingleQuestionState"] == "Answered":
         isCorrect = session["correctness"].get(session["progress"], False)
+
+        # redisplay the submitted code
+        if question.type == "programming":
+            form.answer.data = session["quizGivenAnswers"].get(session["progress"], [""])[0]
+
+        # only pass run output when the question is answered
+        runResult = session.get("quizRunResults", {}).get(session["progress"])
+
         return render_template(
             "individualQuestion.html",
             title="Question",
@@ -422,6 +448,9 @@ def question():
             showingAnswer=True,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            runResult=runResult,
+            error=runError,
+            isProgramming=(question.type == "programming"),
         )
     else:
         return render_template(
@@ -432,6 +461,9 @@ def question():
             showingAnswer=False,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            runResult=None,
+            error=runError,
+            isProgramming=(question.type == "programming"),
         )
 
 @app.route("/quiz", methods=["GET", "POST"])
@@ -440,14 +472,15 @@ def quiz():
     types = [
         "multiple_choice",
         "multiple_select",
-        #"short_answer", until we have good ones
-        "true_false"
+        "short_answer",
+        "true_false",
+        "programming",
     ]
     languages = ["Python", "C++"]
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
     for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved"]:
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "quizRunResults"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:

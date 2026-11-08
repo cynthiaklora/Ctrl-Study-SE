@@ -40,10 +40,11 @@ class TemplateSections:
     question: str
     answer: str
     incorrect: str
+    starterCode: str | None
 
 
 # sectionHeaders defines the only valid root block names
-sectionHeaders = {"variables", "question", "answer", "incorrect"}
+sectionHeaders = {"variables", "question", "answer", "incorrect", "starterCode"}
 
 
 # ____________________________________ LIBRARY INTERACTION FUNCTIONS SECTION ____________________________________
@@ -324,8 +325,8 @@ def parseSections(templateText: str) -> TemplateSections:
     sectionLines: dict[str, list[str]] = {name: [] for name in sectionHeaders}      # Initialize storage for each required template section
 
     for rawLine in templateText.splitlines():
-        strippedLine = rawLine.strip()                                                              # Normalize whitespace for header detection while preserving raw content for storage/errors
-        sectionMatch = re.match(r"^(variables|question|answer|incorrect)\s*:\s*$", strippedLine)    # Detect section headers like "variables:" or "question:" on their own line
+        strippedLine = rawLine.strip()                                                      # Normalize whitespace for header detection while preserving raw content for storage/errors
+        sectionMatch = re.match(rf"^({'|'.join(sectionHeaders)})\s*:\s*$", strippedLine)    # Detect section headers like "variables:" or "question:" on their own line
 
         if sectionMatch:                                                            # Switch the active section when a header is found
             currentSection = sectionMatch.group(1)
@@ -347,6 +348,7 @@ def parseSections(templateText: str) -> TemplateSections:
         question="\n".join(sectionLines["question"]),
         answer="\n".join(sectionLines["answer"]),
         incorrect="\n".join(sectionLines["incorrect"]),
+        starterCode="\n".join(sectionLines["starterCode"]),
     )
 
 
@@ -456,6 +458,41 @@ def renderJinja(templateText: str, context: dict[str, Any], rng: random.Random |
         raise errorAt(badLine) from exc                                             # Raise a normalized error with context for user-facing templates
 
 
+# ================ renderCodeSection: RENDERS STARTER CODE, SUBSTITUTING ONLY REAL {{ }} TEMPLATE REFERENCES ================
+# Code has its own braces ({{1,2},{3,4}}), so this doesn't run the text through full Jinja like renderJinja does
+# Only {{ name }}, {{ name.attr }}, and {{ func(...) }} are replaced, and only if the root name is a defined variable or library function. Everything else is left as written
+# Skips renderJinja's strip, indent filter, and "single function call" shortcuts, which are all wrong for code
+# e.g. renderCodeSection("int x = {{ var1 }};", ctx) -> "int x = 7;"
+def renderCodeSection(codeText: str, context: dict[str, Any], rng: random.Random | None = None) -> str | None:
+    if not codeText.strip():
+        return None
+
+    codeExpressionPattern = re.compile(r"\{\{\s*([A-Za-z_][\w.]*(?:\(.*?\))?)\s*\}\}")
+
+    functionRegistry = getLibraryFunctionRegistry(rng)
+    env = Environment(undefined=StrictUndefined)
+    env.globals.update(functionRegistry)
+
+    def replacer(match: re.Match[str]) -> str:
+        expression = match.group(1)
+        rootName = re.match(r"[A-Za-z_]\w*", expression).group(0)
+        if rootName not in context and rootName not in functionRegistry:    # Not ours, so it's just code braces
+            return match.group(0)
+
+        try:
+            value = env.compile_expression(expression)(context)
+        except Exception as exc:
+            raise errorAt(match.group(0)) from exc
+
+        # Keep multi-line results (e.g. randomLoop) aligned with the line they're inserted on
+        lineStart = codeText.rfind("\n", 0, match.start()) + 1
+        leading = codeText[lineStart:match.start()]
+        indent = leading if not leading.strip() else leading[: len(leading) - len(leading.lstrip())]
+        return indentAfterNewline(value, indent)
+
+    return codeExpressionPattern.sub(replacer, codeText.strip("\n"))        # Strips blank lines only, so indentation survives
+
+
 # ================ deferLibraryCallsInJinja: DEFERS ENGINE CALLS INSIDE {{ }} OR RAW LINES ================
 # This is a preprocessing step before Jinja rendering to turn library calls into inert tokens so Jinja won't try to execute them before variables are resolved.
 # It handles both inline calls within {{ }} and full-line calls that are just a function call with no other text. Atleast it should.
@@ -503,7 +540,7 @@ def restoreLibraryCallsInJinja(renderedText: str, lineMap: dict[str, str]) -> st
 
 
 # ================ evaluateAnswer: EVALUATES EACH ANSWER LINE AS ONE METHOD CALL OR TEXT ================
-# This is called when parsing the answer(also prompt) section. Each line is processed as either a function call (like UInt(1, 3)) or a text line with Jinja rendering (like "The answer is {{ var1 }}"). 
+# This is called when parsing the answer(also prompt) section. Each line is processed as either a function call (like UInt(1, 3)) or a text line with Jinja rendering (like "The answer is {{ var1 }}").
 # For function calls, all candidates are generated but only the first non-empty one is used to allow deterministic multi-line answers when needed.
 # e.g. evaluateAnswer("answerLine1\nfuncCall(x)", ctx) -> ["answerLine1", "<func result>"]
 # Returns a list of answer strings (even if there is only one)
@@ -634,6 +671,7 @@ def generateQuestion(
     renderedQuestion = renderJinja(sections.question, context, rng).strip()
     renderedAnswers = evaluateAnswer(sections.answer, context, rng)
     renderedIncorrect = evaluateIncorrect(sections.incorrect, context, correctAnswers=renderedAnswers, rng=rng)
+    renderedStarterCode = renderCodeSection(sections.starterCode, context, rng)
     renderedFeedbackLines = evaluateAnswer(feedbackText, context, rng)
 
     # Return the final response payload
@@ -642,5 +680,6 @@ def generateQuestion(
         "question": renderedQuestion,
         "answer": renderedAnswers,
         "incorrect": renderedIncorrect,
+        "starterCode": renderedStarterCode,
         "feedback": "\n".join(renderedFeedbackLines).strip(),
     }
