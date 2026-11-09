@@ -574,7 +574,7 @@ def saveQuiz():
                     if labels else None
                 ),
                 "correct_answers": correctValues,
-                "given_answers": [labels[v] for v in givenValues],
+                "given_answers": [labels.get(v, v) for v in givenValues],
                 "is_correct": bool(sessionLookup(correctness, index, False)),
                 "feedback": question.feedback,
                 "quiz_id": quizID,
