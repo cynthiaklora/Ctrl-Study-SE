@@ -1,4 +1,4 @@
-﻿<!-- This is the template builder page. -->
+<!-- This is the template builder page. -->
 
 {% extends "base.html" %}
 {% block head %}
@@ -9,6 +9,26 @@
   document.addEventListener("DOMContentLoaded", function () {
     const templateBox = document.getElementById("template_text");
     if (!templateBox) return;
+
+    // Fill in the blank: show the how-to hint, and swap in the blank starter if the editor still holds an untouched default
+    const typeSelect = document.getElementById("question_type");
+    const blankHint = document.getElementById("blank_hint");
+    const defaultTemplate = {{ default_template | tojson }};
+    const blankTemplate = {{ blank_template | tojson }};
+
+    function syncBlankUi(swapStarter) {
+      const isBlank = typeSelect.value === "fill_in_the_blank";
+      blankHint.style.display = isBlank ? "block" : "none";
+      if (!swapStarter) return;
+      const current = templateBox.value.trim();
+      if (isBlank && current === defaultTemplate.trim()) templateBox.value = blankTemplate;
+      else if (!isBlank && current === blankTemplate.trim()) templateBox.value = defaultTemplate;
+    }
+
+    if (typeSelect && blankHint) {
+      typeSelect.addEventListener("change", function () { syncBlankUi(true); });
+      syncBlankUi(false);
+    }
 
     templateBox.addEventListener("keydown", function (event) {
       if (event.key !== "Tab") return;
@@ -79,6 +99,8 @@
                 <option value="short_answer" {% if question_type=="short_answer" %}selected{% endif %}>Short Answer
                 </option>
                 <option value="true_false" {% if question_type=="true_false" %}selected{% endif %}>True False</option>
+                <option value="fill_in_the_blank" {% if question_type=="fill_in_the_blank" %}selected{% endif %}>Fill in
+                  the Blank</option>
               </select>
             </div>
             <div>
@@ -98,6 +120,11 @@
         <div class="text_spacing">
           <label for="template_text">Template Input</label><br />
         </div>
+        <p id="blank_hint" style="display: none; max-width: 600px; font-size: 14px;">
+          <b>Fill in the Blank:</b> in the <code>question:</code> section, write <code>[[blank]]</code> (or
+          <code>{{ '{{ blank() }}' }}</code>) wherever a blank goes. In the <code>answer:</code> section, put one line per blank,
+          in the same order. Grading ignores extra spaces but is case-sensitive. The <code>incorrect:</code> section is not used.
+        </p>
         <textarea id="template_text" name="template_text" rows="24" cols="75">{{ template_text }}</textarea><br /><br />
 
         <!-- feedback -->

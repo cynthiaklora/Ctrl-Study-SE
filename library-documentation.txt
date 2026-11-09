@@ -69,3 +69,12 @@ question_library.py VERSION 2.0 POWER UP (3/27)
     chooseMultiple(count, (text, value), ...)
         - Chooses count amount of tuples as ChoiceValues and returns the list of ChoiceValues
         - Useful for multiple_select I hope.
+
+question_library.py VERSION 2.1 FILL IN THE BLANK
+    =============== NOTES ===============
+    - For question type "Fill in the Blank": put [[blank]] (or {{ blank() }}) in the question section wherever a blank goes.
+    - Each blank is matched IN ORDER to one line of the answer section (2 blanks = 2 answer lines). Mismatches show an error on Preview.
+    - Grading ignores extra spaces but is case-sensitive. The incorrect section is not used for this type.
+    =============== END NOTES ===============
+    blank()
+        - Returns the blank marker "[[blank]]". Same as typing [[blank]] directly; handy inside Jinja conditionals.

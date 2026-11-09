@@ -14,11 +14,17 @@
     <h1>Question {{ currentQuestion }}</h1>
     <h3>{{ form.language }}</h3>
     <p><b>{{ form.prompt }}</b></p>
+    {% if not form.inline_blanks %}
     <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
+    {% endif %}
     <form style="tab-size: 4" action="" method="post" novalidate>
         {{ form.hidden_tag() }}
         <p><b>{{ form.instructions }}</b></p>
         <fieldset {{ "disabled" if showingAnswer }}>
+            {% if form.inline_blanks %}
+            {# fill in the blank: the inputs live inside the code block, so it has to sit inside the form/fieldset #}
+            <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
+            {% endif %}
             {{ form.answer(style="list-style:none; white-space: pre-line;", class="answer") }}
         </fieldset>
         <h3 style="color: {{ " green" if status=="Correct" else "red" if status=="Incorrect" }}">{{ status }}</h3>

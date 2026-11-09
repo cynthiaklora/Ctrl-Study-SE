@@ -42,13 +42,45 @@ incorrect:
 combinations("{{ x }} {{ y }}", out1, out2, out3, out4)
 """
 
+# blankDefaultTemplate is swapped in when "Fill in the Blank" is picked and the editor still holds an untouched starter
+# Each [[blank]] in the question section is matched, in order, to one line of the answer section
+blankDefaultTemplate = """variables:
+var1 = UInt("count", 3, 9);
+
+question:
+for (int i = 0; i < {{ var1 }}; [[blank]])
+    cout << i << " ";
+
+answer:
+i++
+
+incorrect:
+"""
+
 
 # formatPreview converts generated payload into readable textarea output
 # When Preview is pressed and question is generated, just give that here so the it can be formatted for preview.
 # Honestly, should probably change this and builder.html to preview how it's going to actually look like in the inidividualQuestion.html
-def formatPreview(payload: dict[str, Any]) -> str:
+def formatPreview(payload: dict[str, Any], questionType: str = "") -> str:
     # Pulls prompt text if present
     prompt = payload.get("prompt", "")
+
+    # Fill in the blank previews the blanks in place of options, so authors can check each blank against its answer
+    if questionType == "fill_in_the_blank":
+        blankAnswers = payload.get("answer", [])
+        blankLines = "\n".join(f"Blank {i + 1}: {item}" for i, item in enumerate(blankAnswers)) or "(none)"
+        feedback = payload.get("feedback", "") or "Incorrect"
+        return (
+            "PROMPT:\n"
+            f"{prompt}\n\n"
+            "QUESTION (blanks marked [[blank]]):\n"
+            f"{payload['question']}\n\n"
+            "BLANK ANSWERS (in order):\n"
+            f"{blankLines}\n\n"
+            "FEEDBACK:\n"
+            f"{feedback}\n"
+        )
+
     # Pulls answers and formats them as bullet-like lines
     answers = payload.get("answer", [])
     if isinstance(answers, list):
@@ -193,9 +225,10 @@ def handleNew(state: dict[str, Any]) -> None:
 def handleGenerate(action: str, state: dict[str, Any], selectedQuestionIdValue: int | None) -> None:
     try:
         payload = generateQuestion(
-            state["templateText"], state["promptText"], state["feedbackText"]
+            state["templateText"], state["promptText"], state["feedbackText"],
+            questionType=state["questionType"],
         )
-        state["previewOutput"] = formatPreview(payload)
+        state["previewOutput"] = formatPreview(payload, state["questionType"])
 
         if action == "save":
             normalizedName = state["questionName"].strip() or "Untitled Question"
@@ -289,4 +322,6 @@ def templateIndex():
         available_tags=availableTags,
         preview_output=state["previewOutput"],
         status_message=state["statusMessage"],
+        default_template=defaultTemplate,
+        blank_template=blankDefaultTemplate,
     )
