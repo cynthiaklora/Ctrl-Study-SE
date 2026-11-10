@@ -27,9 +27,6 @@
                     </label>
 
                     <div class="quiz-action-buttons">
-                        <button type="button" id="select-all-tags">
-                            Toggle All
-                        </button>
                     </div>
                 </div>
 
@@ -149,9 +146,6 @@
             document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="questionTypes"]');
             });
-            document.getElementById('select-all-tags').addEventListener('click', function () {
-                toggleCheckboxes('input[name="tagSelection"]', true);
-            });
             document.getElementById('select-all-languages').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="languageSelection"]');
             });
@@ -191,10 +185,6 @@
         childTags.forEach(tag => {
             tag.addEventListener("change", updateParentTag);
         });
-
-        // refresh all tags after the toggle all button is clicked
-        document.getElementById("select-all-tags")
-            .addEventListener("click", updateParentTag);
 
         updateParentTag();
 
@@ -304,9 +294,6 @@
         }
 
         parentTag.addEventListener("change", updateAllGroups);
-
-        document.getElementById("select-all-tags")
-            .addEventListener("click", updateAllGroups);
 
         filterTags();
     </script>
