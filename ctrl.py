@@ -12,8 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request, jsonify                        # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm CystinQyuzFirn
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, LoginForm, RegisterForm, CustomQuizForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm, CustomQuizForm
 
 from functools import wraps
 from datetime import timedelta, timezone, datetime
@@ -296,13 +295,8 @@ def account():
     for q in fullQuizzesRows:
         q["quiz_questions"].sort(key=lambda r: r["position"])
 
-<<<<<<< HEAD
-    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows)
-
-=======
     return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows, csrfForm=CsrfForm())
-    
->>>>>>> origin
+
 
 @app.route("/template", methods=["GET", "POST"])
 @login_required
@@ -520,11 +514,7 @@ def quiz():
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
     for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
-<<<<<<< HEAD
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "quizRunResults"]:
-=======
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "customQuiz"]:
->>>>>>> origin
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "quizRunResults", "customQuiz"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
@@ -661,7 +651,6 @@ def saveQuiz():
     session.modified = True
     return jsonify(status="success", message="Quiz saved to account.")
 
-<<<<<<< HEAD
 @app.route("/code-sandbox", methods=["GET", "POST"])
 @login_required
 def codeSandbox():
@@ -690,7 +679,7 @@ def codeSandbox():
 @app.route("/whoami")
 def whoami():
     return {"ip": request.remote_addr, "scheme": request.scheme}
-=======
+
 @app.route("/quiz/<int:quizId>/delete", methods=["POST"])
 @login_required
 def deleteQuiz(quizId):
@@ -750,7 +739,6 @@ def customQuiz():
         error = "Could not load the selected questions."
 
     return render_template("CustomQuiz.html", title="Ctrl-Study: Test Questions", form=form, pool=pool, error=error)
->>>>>>> origin
 
 # Starts local development server when run directly
 if __name__ == "__main__":
