@@ -29,8 +29,7 @@
             <fieldset disabled>
                 {{ form.answer(style="list-style:none; white-space: pre-line;", class="answer") }}
             </fieldset>
-            <h3 style="color: {{ " green" if correctness[loop.index0] else "red" }}">{{ "Correct" if
-                correctness[loop.index0] else "Incorrect" }}</h3>
+            {% if correctness[loop.index0] %}<h3 style="color:green;">Correct</h3>{% else %}<h3 style="Color: red" ;>Incorrect</h3>{% endif %}
             <div class="slight_clear_bordering">
                 {% if correctness[loop.index0] == False %}
                 <p><i>The correct answer was:</i></p>
@@ -48,7 +47,11 @@
 </div>
 
 <p style="color: grey; text-align: center;"><i>Seed: {{ session["seed"] }}</i></p>
+{% if current_user.is_authenticated %}
 <button id="complete-quiz-save">Save Full Quiz</button>
+{% else %}
+<p>Log In to be able to save your quizzes!</p>
+{% endif %}
 
 <script>
     document.getElementById('complete-quiz-save').addEventListener('click', function() {

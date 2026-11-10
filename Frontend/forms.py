@@ -50,6 +50,16 @@ class CodeSandboxForm(FlaskForm):
         if self.language.data is None and not self.is_submitted():
             self.language.data = languages[0]
 
+# ADMIN TESTING: lets an admin hand-pick specific questions from the pool
+class CustomQuizForm(FlaskForm):
+    questionIds = MultiCheckboxField("Questions", validators=[DataRequired(message="Select at least one question.")])
+    seed = StringField("Seed", validators=[Optional()])
+    submit = SubmitField("Start Test")
+
+    def __init__(self, questions: list[tuple[str, str]], *args, **kwargs):
+        super(CustomQuizForm, self).__init__(*args, **kwargs)
+        self.questionIds.choices = [(id, title) for (id, title) in questions]
+
 # QUESTION TYPES
 
 # generic question form, from which all questions descend
