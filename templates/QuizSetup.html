@@ -147,14 +147,19 @@
             });
             document.getElementById('select-all-tags').addEventListener('click', function () {
                 toggleCheckboxes('input[name="tagSelection"]', true);
+                updateAllGroups();
             });
             document.getElementById('select-all-languages').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="languageSelection"]');
             });
 
-            toggleCheckboxes('input[name="questionTypes"]');
-            toggleCheckboxes('input[name="tagSelection"]');
-            toggleCheckboxes('input[name="languageSelection"]');
+            document.querySelectorAll(
+                'input[name="questionTypes"], input[name="tagSelection"], input[name="languageSelection"]'
+            ).forEach(checkbox => {
+                checkbox.checked = true;
+            });
+
+            updateAllGroups();
 
         });
 
@@ -261,9 +266,6 @@
         function updateAllGroups() {
             groupControls.forEach(updateGroup => updateGroup());
         }
-
-        document.getElementById("select-all-tags")
-            .addEventListener("click", updateAllGroups);
 
         filterTags();
     </script>
