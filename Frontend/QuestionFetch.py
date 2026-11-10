@@ -23,6 +23,9 @@ def parseSeed(raw) -> int:
     except ValueError:
         return makeSeed() # this just ignores any input if the above part fails, could make this return an error message if needed
 
+# would probably be beneficial to have QuestionContainer as a parent class
+# and creating separate child classes based on specific question requirements
+# i.e. programming questions don't need incorrect options and other questions don't need starterCode
 @dataclass
 class QuestionContainer:
     prompt: str
@@ -34,8 +37,9 @@ class QuestionContainer:
     language: str
     title: str
     starterCode: str | None
+    requirements: list[dict] | None
 
-    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, starterCode: str | None = None):
+    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, starterCode: str | None = None, requirements: list[dict] | None = None):
         self.prompt = prompt
         self.question = question
         self.correct = correct
@@ -45,6 +49,7 @@ class QuestionContainer:
         self.language = language
         self.title = title
         self.starterCode = starterCode
+        self.requirements = requirements
 
     def __hash__(self):
         return hash(
@@ -113,6 +118,7 @@ def getRandomQuestions(seed: int, count: int = 1, tags: list[str] = [], types: l
             language=qu["language"],
             title=qu["title"],
             starterCode=gq.get("starterCode"),
+            requirements=gq.get("requirements"),
         ))
 
     return questions
@@ -167,6 +173,7 @@ def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> Ques
                 feedback=question.feedback,
                 language=question.language,
                 starterCode=question.starterCode,
+                requirements=question.requirements,
                 prefix=label
             )
         case _:

@@ -197,6 +197,7 @@ class ProgrammingQuestionForm(QuestionForm[TextAreaField]):
         language: str,
         feedback: str,
         starterCode: str | None = None,
+        requirements: str | None = None,
         *args,
         **kwargs,
     ):
@@ -207,5 +208,6 @@ class ProgrammingQuestionForm(QuestionForm[TextAreaField]):
         self.feedback = feedback
         self.language = language
         self.starterCode = starterCode
+        self.requirements = requirements
         if starterCode and not self.is_submitted():   # only prefill on first load
             self.answer.data = starterCode

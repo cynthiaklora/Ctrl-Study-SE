@@ -30,6 +30,21 @@
         {% if error %}
         <p style="color: orange;"><b>{{ error }}</b></p>
         {% endif %}
+
+        {% if requirementErrors %}
+        <p style="color: orange;"><b>Your code doesn't meet these requirements:</b></p>
+        <ul>{% for r in requirementErrors %}<li>{{ r }}</li>{% endfor %}</ul>
+        {% endif %}
+
+        {% if runResult %}
+            {% if not showingAnswer %}
+            <p style="color: orange;"><b>Your program hit an error. Fix it and submit again.</b></p>
+            {% endif %}
+            <p><i>Your program's output:</i></p>
+            {% if runResult.timedOut %}<p style="color: red;">Your program timed out.</p>{% endif %}
+            {% if runResult.stdout %}<pre>{{ runResult.stdout }}</pre>{% endif %}
+            {% if runResult.stderr %}<p><i>Errors:</i></p><pre style="color: red;">{{ runResult.stderr }}</pre>{% endif %}
+        {% endif %}
         <h3 style="color: {{ " green" if status=="Correct" else "red" if status=="Incorrect" }}">{{ status }}</h3>
         {% if showingAnswer %}
         <div class="slight_clear_bordering">

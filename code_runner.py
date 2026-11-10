@@ -17,6 +17,7 @@ from __future__ import annotations
 import socket
 import threading
 import uuid
+import re
 
 import docker
 import requests
@@ -56,11 +57,13 @@ LANGUAGES = {
         "image": "python:3.12-slim",
         #        read stdin (code) and exec
         "cmd": ["python", "-"],
+        "strip_pattern": re.compile(r'#[^\n]*|""".*?"""|\'\'\'.*?\'\'\'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', re.S)
     },
     "cpp": {
         "image": "gcc:13",
         #                    read stdin (code)      compile the code                       run the code
         "cmd": ["sh", "-c", "cat > /tmp/main.cpp && g++ -O1 -o /tmp/a.out /tmp/main.cpp && /tmp/a.out"],
+        "strip_pattern": re.compile(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', re.S)
     },
 }
 
@@ -72,6 +75,22 @@ def _truncate(text: str) -> str:
     if len(text) > MAX_OUTPUT_CHARS:
         return text[:MAX_OUTPUT_CHARS] + "\n[output truncated]"
     return text
+
+# returns the messages of every unmet requirement (empty list means all satisfied)
+def checkRequirements(language: str, code: str, requirements: list[dict]) -> list[str]:
+    language = LANGUAGE_ALIASES.get(language, language)
+    if len(code) > MAX_CODE_CHARS:      # bounds regex work with the same cap runCode uses
+        raise RunnerError("Code is too long.")
+
+    stripper = LANGUAGES[language]["strip_pattern"]
+    stripped = stripper.sub(" ", code) if stripper else code
+
+    unmet = []
+    for rule in requirements:
+        found = re.search(rule["pattern"], stripped) is not None
+        if found == rule["forbid"]:     # missing a required one, or present a forbidden one
+            unmet.append(rule["message"])
+    return unmet
 
 def runCode(language: str, code: str) -> dict:
     language = LANGUAGE_ALIASES.get(language, language)

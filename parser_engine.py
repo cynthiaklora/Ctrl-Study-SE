@@ -41,10 +41,11 @@ class TemplateSections:
     answer: str
     incorrect: str
     starterCode: str | None
+    requirements: str | None
 
 
 # sectionHeaders defines the only valid root block names
-sectionHeaders = {"variables", "question", "answer", "incorrect", "starterCode"}
+sectionHeaders = {"variables", "question", "answer", "incorrect", "starterCode", "requirements"}
 
 
 # ____________________________________ LIBRARY INTERACTION FUNCTIONS SECTION ____________________________________
@@ -349,8 +350,45 @@ def parseSections(templateText: str) -> TemplateSections:
         answer="\n".join(sectionLines["answer"]),
         incorrect="\n".join(sectionLines["incorrect"]),
         starterCode="\n".join(sectionLines["starterCode"]),
+        requirements="\n".join(sectionLines["requirements"]),
     )
 
+# ================ parseRequirements: TURNS THE requirements: SECTION INTO CHECKABLE RULES ================
+# One rule per line: <regex> => <message>. A leading ! makes it a "must NOT contain" rule. Message is optional
+# Reuses renderCodeSection so {{ var }} works but regex braces like \d{2} are left alone
+# Bad regexes fail here, at preview time, instead of on a student's submit
+# e.g. parseRequirements("\\bfor\\s*\\( => Use a for loop", ctx) -> [{"pattern": "\\bfor\\s*\\(", "message": "Use a for loop", "forbid": False}]
+def parseRequirements(requirementsBlock: str, context: dict[str, Any], rng: random.Random | None = None) -> list[dict[str, Any]]:
+    rendered = renderCodeSection(requirementsBlock, context, rng)
+    if rendered is None:
+        return []
+
+    rules: list[dict[str, Any]] = []
+    for rawLine in rendered.splitlines():
+        line = rawLine.strip()
+        if not line:
+            continue
+
+        forbid = line.startswith("!")
+        if forbid:
+            line = line[1:].strip()
+
+        pattern, _, message = line.partition(" => ")
+        pattern = pattern.strip()
+        try:
+            if not pattern:
+                raise ValueError("empty pattern")
+            re.compile(pattern)
+        except (re.error, ValueError):
+            raise errorAt(rawLine)
+
+        verb = "must not contain" if forbid else "must contain"
+        rules.append({
+            "pattern": pattern,
+            "message": message.strip() or f"Your code {verb}: {pattern}",
+            "forbid": forbid,
+        })
+    return rules
 
 # ================ evaluateVariables: EVALUATES VARIABLE ASSIGNMENT EXPRESSIONS ================
 # This is for the variables section. We want to create a "context" dictionary of values with their
@@ -672,6 +710,7 @@ def generateQuestion(
     renderedAnswers = evaluateAnswer(sections.answer, context, rng)
     renderedIncorrect = evaluateIncorrect(sections.incorrect, context, correctAnswers=renderedAnswers, rng=rng)
     renderedStarterCode = renderCodeSection(sections.starterCode, context, rng)
+    renderedRequirements = parseRequirements(sections.requirements, context, rng)
     renderedFeedbackLines = evaluateAnswer(feedbackText, context, rng)
 
     # Return the final response payload
@@ -681,5 +720,6 @@ def generateQuestion(
         "answer": renderedAnswers,
         "incorrect": renderedIncorrect,
         "starterCode": renderedStarterCode,
+        "requirements": renderedRequirements,
         "feedback": "\n".join(renderedFeedbackLines).strip(),
     }

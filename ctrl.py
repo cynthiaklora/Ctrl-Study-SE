@@ -401,7 +401,9 @@ def question():
     question = session["quizQuestions"][session["progress"]]
     form = QuestionFetch.getQuestionForm(question)
 
-    runError = None   # set if the sandbox couldn't run (busy / docker down)
+    runError = None         # set if the sandbox couldn't run (busy / docker down)
+    requirementErrors = []  # unmet requirement messages
+    attemptResult = None    # run output from a failed attempt, so the retry page can show it
 
     if action == "submit" and session["SingleQuestionState"] == "NewQuestion" and form.validate_on_submit():
         correct = form.correct
@@ -413,14 +415,23 @@ def question():
         graded = True
         if question.type == "programming":
             try:
-                run = code_runner.runCode(question.language, answers[0])
-                got = [l.strip() for l in run["stdout"].splitlines() if l.strip()]
-                expected = [c.strip() for c in correct]
-                isCorrect = (not run["timedOut"] and run["exitCode"] == 0 and got == expected)
-                session.setdefault("quizRunResults", {})[session["progress"]] = run
+                unmet = code_runner.checkRequirements(question.language, answers[0], question.requirements)
+                if unmet:
+                    requirementErrors = unmet
+                    graded = False
+                else:
+                    run = code_runner.runCode(question.language, answers[0])
+                    if run["stderr"].strip() or run["timedOut"]:
+                        attemptResult = run     # shown on the retry page, not saved to the session
+                        graded = False
+                    else:
+                        got = [l.strip() for l in run["stdout"].splitlines() if l.strip()]
+                        expected = [c.strip() for c in correct]
+                        isCorrect = (run["exitCode"] == 0 and got == expected)
+                        session.setdefault("quizRunResults", {})[session["progress"]] = run
             except code_runner.RunnerError as e:
-                runError = str(e)   # "Server is busy" / "Docker is not available"
-                graded = False      # stay in NewQuestion so their code isn't lost
+                runError = str(e)
+                graded = False
         else:
             isCorrect = set(answers) == set(correct)
 
@@ -461,7 +472,8 @@ def question():
             showingAnswer=False,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
-            runResult=None,
+            runResult=attemptResult,
+            requirementErrors=requirementErrors,
             error=runError,
             isProgramming=(question.type == "programming"),
         )
@@ -472,7 +484,7 @@ def quiz():
     types = [
         "multiple_choice",
         "multiple_select",
-        "short_answer",
+        # "short_answer", until we have good ones
         "true_false",
         "programming",
     ]

@@ -60,6 +60,11 @@ def formatPreview(payload: dict[str, Any]) -> str:
     starterCode = payload.get("starterCode")
     starterBlock = f"STARTER CODE:\n{starterCode}\n\n" if starterCode else ""
 
+    # Pulls requirements if present. Only programming questions have it, so the block is left out entirely when it's None
+    requirements = payload.get("requirements") or []
+    requirementsBlock = ("REQUIREMENTS:\n" + "\n".join(
+        f"- {'NOT ' if r['forbid'] else ''}{r['pattern']}  ({r['message']})" for r in requirements) + "\n\n") if requirements else ""
+
     # Pulls incorrect answers and formats them as bullet-like lines
     incorrect = payload.get("incorrect", [])
     incorrectLines = "\n".join(f"- {item}" for item in incorrect) or "(none)"
@@ -72,7 +77,7 @@ def formatPreview(payload: dict[str, Any]) -> str:
         f"{prompt}\n\n"
         "QUESTION:\n"
         f"{payload['question']}\n\n"
-        f"{starterBlock}"
+        f"{starterBlock}{requirementsBlock}"
         "ANSWER(S):\n"
         f"{answerLines}\n\n"
         "INCORRECT OPTIONS:\n"
