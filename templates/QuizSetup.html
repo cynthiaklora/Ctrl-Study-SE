@@ -88,6 +88,7 @@
 
     <script id="database-tags" type="application/json">{{ tags | tojson }}</script>
     <script>
+        const groupEls = []; // filled in when the category groups are built: {li, details, rows}
         function toggleCheckboxes(query, visibleOnly) {
             var checkboxes = Array.from(document.querySelectorAll(query));
             if (visibleOnly) {
@@ -110,16 +111,30 @@
         }
 
         function filterTags() {
-            // "python, loops" = ["python", "loops"], a tag matches if it contains any term
             const terms = searchBox.value.toLowerCase().split(",").map(t => t.trim()).filter(Boolean);
+            const searching = terms.length > 0;
             let shown = 0;
 
             tagItems.forEach(li => {
                 const text = li.textContent.toLowerCase();
-                const match = terms.length === 0 || terms.some(t => text.includes(t));
+                const match = !searching || terms.some(t => text.includes(t));
                 li.style.display = match ? "" : "none";
                 if (match) shown++;
             });
+
+            groupEls.forEach(g => {
+                const anyMatch = g.rows.some(r => r.style.display !== "none");
+                g.li.style.display = anyMatch ? "" : "none";   // hide categories with no matches
+
+                if (searching) {
+                    if (g.prevOpen === undefined) g.prevOpen = g.details.open; // remember the user's state
+                    g.details.open = anyMatch;                                 // reveal matches
+                } else if (g.prevOpen !== undefined) {
+                    g.details.open = g.prevOpen;                               // restore when search is cleared
+                    g.prevOpen = undefined;
+                }
+            });
+
             updateStatus(shown);
         }
 
@@ -129,8 +144,6 @@
         searchBox.addEventListener("keydown", e => {
             if (e.key === "Enter") e.preventDefault();
         });
-
-        filterTags();
 
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
@@ -249,6 +262,8 @@
             groupRow.appendChild(details);
             tagList.appendChild(groupRow);
 
+            groupEls.push({ li: groupRow, details, rows: matchingRows });
+
             const nestedCheckboxes = [
                 ...nestedList.querySelectorAll('input[name="tagSelection"]')
             ];
@@ -293,7 +308,7 @@
         document.getElementById("select-all-tags")
             .addEventListener("click", updateAllGroups);
 
-        // ********** Add Search Feature ***********
+        filterTags();
     </script>
 </div>
 
