@@ -12,7 +12,7 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request, jsonify                        # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm, CustomQuizForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm, CustomQuizForm
 
 from functools import wraps
 from datetime import timedelta, timezone, datetime
@@ -454,6 +454,9 @@ def question():
             except code_runner.RunnerError as e:
                 runError = str(e)
                 graded = False
+        # probably can be compared on question.type but don't want to break the merge
+        elif isinstance(form, FillBlankQuestionForm):
+            isCorrect = form.grade(answers)     # blanks are graded in order, not as a set
         else:
             isCorrect = set(answers) == set(correct)
 
@@ -506,8 +509,9 @@ def quiz():
     types = [
         "multiple_choice",
         "multiple_select",
-        # "short_answer", until we have good ones
+        #"short_answer", until we have good ones
         "true_false",
+        "fill_in_the_blank",
         "programming",
     ]
     languages = ["Python", "C++"]
@@ -630,7 +634,7 @@ def saveQuiz():
                     if labels else None
                 ),
                 "correct_answers": correctValues,
-                "given_answers": [labels[v] for v in givenValues],
+                "given_answers": [labels.get(v, v) for v in givenValues],
                 "is_correct": bool(sessionLookup(correctness, index, False)),
                 "feedback": question.feedback,
                 "quiz_id": quizID,
