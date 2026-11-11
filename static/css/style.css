@@ -757,11 +757,13 @@ textarea.answer {
 
 /* submit button styling  */
 
-#submit-btn:disabled {
+#submit-btn:disabled,
+#confusing-btn:disabled {
     opacity: 0.5;
 }
 
-#submit-btn {
+#submit-btn,
+#confusing-btn {
     transition: opacity 0.1s;
 }
 
