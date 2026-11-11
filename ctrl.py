@@ -22,6 +22,8 @@ from flask import redirect, url_for, abort
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 from flask_wtf import FlaskForm
 
+from collections import Counter
+
 import supabase_client
 from supabase_client import ctrlDB, makeOauthClient
 import template_builder
@@ -270,17 +272,28 @@ class CsrfForm(FlaskForm):
 def account():
     error = None
 
-    savedSeeds = ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"]).is_("deleted_at", "NULL").order("created_at", desc=True).execute()
+    savedSeeds = (ctrlDB.table("quizzes").select("*").eq("user_id", session["userID"])
+                 .is_("deleted_at", "NULL").order("created_at", desc=True).execute())
     savedSeedsRows = savedSeeds.data
-    fullQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)")
-                   .eq("user_id", session["userID"]).is_("deleted_at", "NULL").order("created_at", desc=True).execute())
-    allQuizzes = fullQuizzes.data or []
-    fullQuizzesRows = [q for q in allQuizzes if q.get("quiz_questions")] # Keeps only quizzes that actually have saved questions
-
-    for q in fullQuizzesRows:
+    allQuizzes = (ctrlDB.table("quizzes").select("*, quiz_questions(*)")
+                   .eq("user_id", session["userID"]).is_("deleted_at", "NULL").order("created_at", desc=True).execute().data or [])
+    
+    for q in allQuizzes:
         q["quiz_questions"].sort(key=lambda r: r["position"])
 
-    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows, csrfForm=CsrfForm())
+    # Only quizzes the user explicitly saved in full
+    fullQuizzesRows = [q for q in allQuizzes if q.get("fully_saved")]
+
+    # Every flagged question, newest quiz first, whether or not the quiz was fully saved
+    confusingRows = [
+        {"quiz": q, "q": qq}
+        for q in allQuizzes
+        for qq in q["quiz_questions"]
+        if qq.get("is_confusing")
+    ]
+
+    return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, 
+                           confusing=confusingRows, manualSaved=fullQuizzesRows, csrfForm=CsrfForm())
     
 
 @app.route("/template", methods=["GET", "POST"])
@@ -290,6 +303,143 @@ def templateIndex():
     if getattr(current_user, "role", None) != "admin":
         return redirect(url_for("home"))
     return template_builder.templateIndex()
+
+def fetchAll(table, columns, orderBy="id", pageSize=1000):
+    # Supabase returns at most 1000 rows per request, so page through the table where needed
+    rows, start = [], 0
+    while True:
+        batch = (ctrlDB.table(table).select(columns).order(orderBy)
+                 .range(start, start + pageSize - 1).execute().data or [])
+        rows.extend(batch)
+        if len(batch) < pageSize:
+            return rows
+        start += pageSize
+
+def barRows(counter, limit=None):
+    # Turns a counter into rows for the template's bar lists
+    items = counter.most_common(limit)
+    top = items[0][1] if items else 1
+    return [{"label": l, "value": v, "pct": round(v / top * 100), "text": str(v)} for l, v in items]
+
+# As dev and live use the same database, these stats aren't going to be fully accurate
+@app.route("/analytics", methods=["GET"])
+@login_required
+def analytics():
+    if getattr(current_user, "role", None) != "admin":
+        return redirect(url_for("home"))
+
+    today = datetime.now(timezone.utc).date()
+    day7 = (today - timedelta(days=7)).isoformat()
+    day30 = (today - timedelta(days=30)).isoformat()
+    day = lambda row: (row.get("created_at") or "")[:10]  # "YYYY-MM-DD", so strings compare correctly
+
+    users = fetchAll("users", "id, username, created_at")
+    quizzes = fetchAll("quizzes", "id, user_id, seed, question_count, tags, types, languages, created_at, deleted_at")
+    savedQs = fetchAll("quiz_questions", "quiz_id, question_type, language, is_correct")
+    bank = fetchAll("questions", "id, question_type, language, is_active")
+    savedQs = fetchAll("quiz_questions", "quiz_id, question_type, language, is_correct, source_question_id")
+    bank = fetchAll("questions", "id, title, question_type, language, is_active")
+    quizzes = fetchAll("quizzes", "id, user_id, seed, question_count, tags, types, languages, created_at, deleted_at, fully_saved")
+    savedQs = fetchAll("quiz_questions", "quiz_id, question_type, language, is_correct, source_question_id, is_confusing")
+    fullIds = {q["id"] for q in quizzes if q.get("fully_saved")}
+    fullQs = [r for r in savedQs if r["quiz_id"] in fullIds]   # complete quizzes only
+
+    stats = {
+        "totalUsers": len(users),
+        "newUsers7": sum(1 for u in users if day(u) >= day7),
+        "newUsers30": sum(1 for u in users if day(u) >= day30),
+        "totalQuizzes": len(quizzes),
+        "quizzes7": sum(1 for q in quizzes if day(q) >= day7),
+        "quizzes30": sum(1 for q in quizzes if day(q) >= day30),
+        "activeUsers30": len({au["user_id"] for au in quizzes if day(au) >= day30}),
+        "avgQuestions": round(sum(aq["question_count"] or 0 for aq in quizzes) / len(quizzes), 1) if quizzes else 0,
+        "uniqueSeeds": len({s["seed"] for s in quizzes}),
+        "fullySaved": len(fullIds),
+        "softDeleted": sum(1 for q in quizzes if q.get("deleted_at")),
+        "activeQuestions": sum(1 for b in bank if b["is_active"])
+    }
+
+    # Quizzes per day, last 30 days (zero-filled so gaps show)
+    perDay = Counter(day(q) for q in quizzes)
+    days = [(today - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+    counts = [perDay[d] for d in days]
+    peak = max(counts) or 1
+    daily = [{"label": d[5:], "value": c, "pct": round(c / peak * 100)} for d, c in zip(days, counts)]
+
+    # What users choose to study (from the quizzes' saved settings)
+    tagCounts = barRows(Counter(t for q in quizzes for t in (q.get("tags") or [])), limit=10)
+    typeCounts = barRows(Counter(t for q in quizzes for t in (q.get("types") or [])))
+    langCounts = barRows(Counter(t for q in quizzes for t in (q.get("languages") or [])))
+
+    # Site-wide accuracy calculated from fully saved quizzes only
+    def accuracyRows(key):
+        attempts, correct = Counter(), Counter()
+        for sq in fullQs:
+            k = sq.get(key) or "Unknown"
+            attempts[k] += 1
+            correct[k] += 1 if sq["is_correct"] else 0
+        rows = []
+        for l, n in attempts.most_common():
+            pct = round(correct[l] / n * 100)
+            rows.append({"label": l, "value": pct, "pct": pct, "text": f"{pct}% ({n} answers)"})
+        return rows
+
+    totalAnswers = len(fullQs)
+    overallAccuracy = round(sum(1 for sq in fullQs if sq["is_correct"]) / totalAnswers * 100) if totalAnswers else None
+
+    # Most active users
+    names = {u["id"]: u["username"] for u in users}
+    perUser = Counter(q["user_id"] for q in quizzes)
+    topUsers = barRows(Counter({names.get(uid, "unknown"): n for uid, n in perUser.items()}), limit=5)
+
+    # Question bank size
+    bankByType = barRows(Counter(b["question_type"] for b in bank if b["is_active"]))
+
+    # Hardest questions
+    MIN_ATTEMPTS = 3  # Ignore templates with too few answers to mean anything
+    titles = {b["id"]: b["title"] for b in bank}
+    tries, right = Counter(), Counter()
+    for sq in fullQs:
+        qid = sq.get("source_question_id")
+        if qid is None:  # Ignore if saved before ids were added to container
+            continue
+        tries[qid] += 1
+        right[qid] += 1 if sq["is_correct"] else 0
+
+    # Highest miss rate first then by most attempts
+    ranked = sorted(
+        ((qid, n, n - right[qid]) for qid, n in tries.items() if n >= MIN_ATTEMPTS),
+        key=lambda t: (-(t[2] / t[1]), -t[1])
+    )
+    hardest = [
+        {"label": titles.get(qid, f"Question #{qid}"), "value": missed,
+        "pct": round(missed / n * 100), "text": f"{round(missed / n * 100)}% missed ({n})"}
+        for qid, n, missed in ranked[:10]
+    ]
+    trackedAnswers = sum(tries.values())
+
+    # Most flagged question templates (flags come from both partial and full saves)
+    flagCounts = Counter(
+        r["source_question_id"] for r in savedQs
+        if r.get("is_confusing") and r.get("source_question_id") is not None
+    )
+    mostConfusing = barRows(Counter({
+        titles.get(qid, f"Question #{qid}"): n for qid, n in flagCounts.items()
+    }), limit=10)
+    for row in mostConfusing:
+        row["text"] = f"{row['value']} flag{'s' if row['value'] != 1 else ''}"
+
+    totalFlags = sum(1 for r in savedQs if r.get("is_confusing"))
+
+    return render_template(
+        "analytics.html", title="Analytics", stats=stats, daily=daily,
+        tagCounts=tagCounts, typeCounts=typeCounts, langCounts=langCounts,
+        accuracyByType=accuracyRows("question_type"), accuracyByLang=accuracyRows("language"),
+        overallAccuracy=overallAccuracy, totalAnswers=totalAnswers,
+        topUsers=topUsers, bankByType=bankByType, hardest=hardest,
+        trackedAnswers=trackedAnswers, minAttempts=MIN_ATTEMPTS,
+        mostConfusing=mostConfusing, totalFlags=totalFlags
+    )
 
 @app.route("/credits", methods=["GET"])
 def credits():
@@ -322,6 +472,57 @@ def createQuizRow():
     except Exception as e:
         print(f"createQuizRow failed: {e}")
         return None
+
+def buildQuestionRows(quizID, indexes=None):
+    questions = session.get("quizQuestions") or []
+    givenAnswers = session.get("quizGivenAnswers") or {}
+    correctness = session.get("correctness") or {}
+    flagged = {int(i) for i in session.get("confusingQuestions", [])}
+
+    rows = []
+    for index, question in enumerate(questions):
+        if indexes is not None and index not in indexes:
+            continue
+
+        labels = {f"choice_{i}": str(text) for i, text in enumerate(question.answer or [])}
+
+        correctValues = (
+            question.correct
+            if isinstance(question.correct, (list, tuple, set))
+            else [question.correct]
+        )
+        correctValues = [str(c[0]) if isinstance(c, (tuple, list)) else str(c) for c in correctValues]
+        givenValues = [str(g) for g in sessionLookup(givenAnswers, index, [])]
+
+        rows.append({
+            "position": index,
+            "source_question_id": getattr(question, "id", None),
+            "question_type": question.type,
+            "language": question.language,
+            "question_text": "\n\n".join(p for p in (question.prompt, question.question) if p) or question.title,
+            "options": [{"value": v, "label": l} for v, l in labels.items()] if labels else None,
+            "correct_answers": correctValues,
+            "given_answers": [labels.get(v, v) for v in givenValues],
+            "is_correct": bool(sessionLookup(correctness, index, False)),
+            "feedback": question.feedback,
+            "is_confusing": index in flagged,
+            "quiz_id": quizID,
+        })
+    return rows
+
+def autosaveConfusingQuestions(quizID):
+    flagged = session.get("confusingQuestions") or []
+    if not flagged or session.get("confusingSaved"):
+        return True
+    try:
+        rows = buildQuestionRows(quizID, indexes={int(i) for i in flagged})
+        ctrlDB.table("quiz_questions").upsert(rows, on_conflict="quiz_id,position").execute()
+    except Exception as e:
+        print(f"autosaveConfusingQuestions failed: {e}")
+        return False
+    session["confusingSaved"] = True
+    session.modified = True
+    return True
 
 @app.route("/quiz-complete", methods=["GET"])
 def quizComplete():
@@ -357,8 +558,11 @@ def quizComplete():
     # Auto saves the quiz seed, question count, tags, types, and languages
     # save-quiz below lets users save the full quiz including questions, answers, feedback, etc
     if session.get("userID"):
-        if createQuizRow() is None:
+        quizID = createQuizRow()
+        if quizID is None:
             error = "Could not autosave quiz."
+        elif not autosaveConfusingQuestions(quizID):
+            error = "Could not save your confusing questions."
 
     if session.get("customQuiz"):
         url = url_for("customQuiz") + "?" + urlencode(session["quizParameters"], doseq=True)
@@ -407,7 +611,7 @@ def question():
     question = session["quizQuestions"][session["progress"]]
     form = QuestionFetch.getQuestionForm(question)
 
-    if action == "submit" and session["SingleQuestionState"] == "NewQuestion" and form.validate_on_submit():
+    if action in ("submit", "confusing") and session["SingleQuestionState"] == "NewQuestion" and form.validate_on_submit():
         correct = form.correct
         answers = form.answer.data
         if not isinstance(answers, list):
@@ -420,6 +624,12 @@ def question():
         session["quizGivenAnswers"][session["progress"]] = answers
         session["correctness"][session["progress"]] = isCorrect
         session["SingleQuestionState"] = "Answered"
+
+        if action == "confusing":
+            flagged = session.setdefault("confusingQuestions", [])
+            if session["progress"] not in flagged:
+                flagged.append(session["progress"])
+
         session.modified = True
 
     if session["SingleQuestionState"] == "Answered":
@@ -458,7 +668,7 @@ def quiz():
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
     for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "customQuiz"]:
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "customQuiz", "confusingQuestions", "confusingSaved"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
@@ -536,57 +746,21 @@ def saveQuiz():
     if session.get("quizQuestionsSaved"):
         return jsonify(status="success", message="This quiz is already saved.")
 
-    questions = session.get("quizQuestions")
-    givenAnswers = session.get("quizGivenAnswers")
-    correctness = session.get("correctness")
-
-    if not questions or givenAnswers is None or correctness is None:
-        return jsonify(status="error", message="No completed quiz to save."), 400
-    if session.get("progress", 0) < len(questions):
-        return jsonify(status="error", message="Finish the quiz before saving it."), 400
-
     # Normally created by the autosave; this is a fallback if that failed
     quizID = createQuizRow()
     if quizID is None:
         return jsonify(status="error", message="Could not find or create this quiz."), 500
 
     try:
-        rows = []
-        for index, question in enumerate(questions):
-            labels = { f"choice_{i}": str(text) for i, text in enumerate(question.answer or []) }
-
-            correctValues = (
-                question.correct
-                if isinstance(question.correct, (list, tuple, set))
-                else [question.correct]
-            )
-            correctValues = [str(c[0]) if isinstance(c, (tuple, list)) else str(c) for c in correctValues]
-            givenValues = [str(g) for g in sessionLookup(givenAnswers, index, [])]
-
-            rows.append({
-                "position": index,
-                "source_question_id": getattr(question, "id", None),
-                "question_type": question.type,
-                "language": question.language,
-                "question_text": "\n\n".join(p for p in (question.prompt, question.question) if p) or question.title,
-                "options": (
-                    [{"value": v, "label": l} for v, l in labels.items()]
-                    if labels else None
-                ),
-                "correct_answers": correctValues,
-                "given_answers": [labels.get(v, v) for v in givenValues],
-                "is_correct": bool(sessionLookup(correctness, index, False)),
-                "feedback": question.feedback,
-                "quiz_id": quizID,
-            })
+        rows = buildQuestionRows(quizID)
     except Exception as e:
         print(f"save-quiz: could not build question rows: {e}")
         return jsonify(status="error", message="Could not read the quiz data."), 500
 
     try:
-        # Upsert on the (quiz_id, position) unique constraint, so a retry
-        # after a partial failure can't create duplicates or conflicts
+        # Upsert on (quiz_id, position): rows already autosaved as confusing are updated, not duplicated
         ctrlDB.table("quiz_questions").upsert(rows, on_conflict="quiz_id,position").execute()
+        ctrlDB.table("quizzes").update({"fully_saved": True}).eq("id", quizID).execute()
     except Exception as e:
         print(f"save-quiz: question insert failed: {e}")
         return jsonify(status="error", message="Could not save the quiz questions."), 500
@@ -607,6 +781,28 @@ def deleteQuiz(quizId):
         .eq("user_id", current_user.id)
         .is_("deleted_at", "null")
         .execute())
+
+    return redirect(url_for("account"))
+
+@app.route("/quesiton/<int:questionID>/unConfuse", methods=["POST"])
+@login_required
+def removeConfused(questionID):
+    if not CsrfForm().validate_on_submit():
+        abort(400)
+
+    userQuizzes = (ctrlDB.table("quizzes")
+            .select("id")
+            .eq("user_id", current_user.id)
+            .execute())
+
+    quizIDs = [r["id"] for r in userQuizzes.data]
+
+    (ctrlDB.table("quiz_questions")
+    .update({"is_confusing": False})
+    .eq("id", questionID)
+    .in_("quiz_id", quizIDs)
+    .is_("is_confusing", "TRUE")
+    .execute())
 
     return redirect(url_for("account"))
 
