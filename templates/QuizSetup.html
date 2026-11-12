@@ -7,6 +7,10 @@
     <form method="post">
         {{ form.hidden_tag() }}
 
+        {% if current_user.role == "admin" %}
+        <p style="text-align: center;"><a href="{{ url_for('customQuiz') }}" class="btn">Admin: hand-pick questions to test</a></p>
+        {% endif %}
+
         <div class="quiz-layout">
             <!-- Left: nested tags -->
             <section class="quiz-card quiz-tags">
