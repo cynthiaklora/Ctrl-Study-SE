@@ -1,3 +1,5 @@
+<!--THIS FILE IS COMPLETELY AI'D JUST FOR EASE OF VISUALIZATION CAN BE CHANGED LATER-->
+
 {% extends "base.html" %} {% block body %}
 {% macro barList(rows) %}
   {% for r in rows %}
@@ -47,6 +49,8 @@
       <div class="num">{% if overallAccuracy is not none %}{{ overallAccuracy }}%{% else %}n/a{% endif %}</div>Overall accuracy
       <div class="sub">across {{ totalAnswers }} saved answers</div></div>
     <div class="stat-card"><div class="num">{{ stats.activeQuestions }}</div>Active question templates</div>
+    <div class="stat-card"><div class="num">{{ totalFlags }}</div>Flagged as confusing
+      <div class="sub">across all users' saved questions</div></div>
   </div>
 
   <div class="panel">
@@ -79,6 +83,13 @@
     </div>
   </div>
   <p class="note">Accuracy only covers fully saved quizzes, since those are the only ones whose answers are stored. Treat it as a sample, not every quiz taken.</p>
+
+  <div class="panel" style="margin-top: 16px;">
+    <h3>Most flagged as confusing</h3>
+    {{ barList(mostConfusing) }}
+    <p class="note">Counted by question template. Unlike accuracy, this includes flags from quizzes that
+    weren't fully saved. Rows from before ids were tracked are skipped.</p>
+  </div>
 
   <h2>Most active users</h2>
   <div class="panel">{{ barList(topUsers) }}</div>
