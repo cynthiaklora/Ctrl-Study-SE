@@ -18,7 +18,7 @@ from functools import wraps
 from datetime import timedelta, timezone, datetime
 from flask_session import Session
 
-from flask import redirect, url_for, abort
+from flask import Flask, send_from_directory, request, redirect, url_for, abort
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 from flask_wtf import FlaskForm
 
@@ -80,6 +80,21 @@ Session(app)
 login_manager = LoginManager()
 login_manager.login_view = "login"
 login_manager.init_app(app)
+
+DOCS_DIR = os.path.join(app.root_path, "static", "documentation")
+
+@app.route("/docs/")
+def docs_index():
+    return send_from_directory(DOCS_DIR, "index.html")
+
+@app.route("/docs/<path:path>")
+def docs(path):
+    full = os.path.join(DOCS_DIR, path)
+    if os.path.isdir(full):
+        if not request.path.endswith("/"):
+            return redirect(request.path + "/", code=301)
+        path = os.path.join(path, "index.html")
+    return send_from_directory(DOCS_DIR, path)
 
 # proper home page
 @app.route("/", methods=["GET"])
@@ -297,7 +312,6 @@ def account():
 
     return render_template("account.html", title="Account", error=error, autoSaved=savedSeedsRows, manualSaved=fullQuizzesRows, csrfForm=CsrfForm())
 
-
 @app.route("/template", methods=["GET", "POST"])
 @login_required
 def templateIndex():
@@ -392,6 +406,7 @@ def quizComplete():
         error=error
     )
 
+# rate limit requests at the /question endpoint to prevent spam (particularly for code run spamming)
 @app.route("/question", methods=["GET", "POST"])
 @limiter.limit("40/minute")
 def question():
@@ -423,6 +438,7 @@ def question():
     question = session["quizQuestions"][session["progress"]]
     form = QuestionFetch.getQuestionForm(question)
 
+    # programming question handling
     runError = None         # set if the sandbox couldn't run (busy / docker down)
     requirementErrors = []  # unmet requirement messages
     attemptResult = None    # run output from a failed attempt, so the retry page can show it
@@ -484,6 +500,7 @@ def question():
             showingAnswer=True,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            # more flags for programming question rendering behavior
             runResult=runResult,
             error=runError,
             isProgramming=(question.type == "programming"),
@@ -497,6 +514,7 @@ def question():
             showingAnswer=False,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            # more flags for programming question rendering behavior
             runResult=attemptResult,
             requirementErrors=requirementErrors,
             error=runError,
@@ -680,6 +698,7 @@ def codeSandbox():
         error=error,
     )
 
+# shows user ip, ensure that reverse proxy is working
 @app.route("/whoami")
 def whoami():
     return {"ip": request.remote_addr, "scheme": request.scheme}

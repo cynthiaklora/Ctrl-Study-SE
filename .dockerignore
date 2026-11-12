@@ -3,3 +3,4 @@
 .env
 __pycache__
 flask_session_cache
+static/documentation/

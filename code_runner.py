@@ -7,10 +7,8 @@
 #   docker pull gcc:13
 #
 # Functions:
-# - (TEMPORARY) Uses /code-sandbox as a code editing area
-# - At this endpoint, admin users ONLY may run arbitrary code, both C++ and Python
-# - stdout and stderr is both displayed, but captured separately
-# - At most MAX_CONCURRENT_RUNS sandboxes may run at the same time
+# - runCode(): safely runs code
+# - checkRequirements(): checks code against programming question defined requirements
 
 from __future__ import annotations
 
@@ -34,7 +32,6 @@ client = docker.from_env()
 # one slot per running sandbox
 slots = threading.BoundedSemaphore(MAX_CONCURRENT_RUNS)
 
-# same restrictions as the old docker run flags
 BASE_OPTS = dict(
     stdin_open=True,                        # -i, keep stdin open so we can pipe the code in
     network_mode="none",                    # no internet
@@ -57,12 +54,14 @@ LANGUAGES = {
         "image": "python:3.12-slim",
         #        read stdin (code) and exec
         "cmd": ["python", "-"],
+        # regex pattern to strip comments and string literals for requirements parsing checks
         "strip_pattern": re.compile(r'#[^\n]*|""".*?"""|\'\'\'.*?\'\'\'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', re.S)
     },
     "cpp": {
         "image": "gcc:13",
         #                    read stdin (code)      compile the code                       run the code
         "cmd": ["sh", "-c", "cat > /tmp/main.cpp && g++ -O1 -o /tmp/a.out /tmp/main.cpp && /tmp/a.out"],
+        # regex pattern to strip comments and string literals for requirements parsing checks
         "strip_pattern": re.compile(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', re.S)
     },
 }
