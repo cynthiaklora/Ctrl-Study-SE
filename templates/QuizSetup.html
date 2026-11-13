@@ -7,6 +7,10 @@
     <form method="post">
         {{ form.hidden_tag() }}
 
+        {% if current_user.role == "admin" %}
+        <p style="text-align: center;"><a href="{{ url_for('customQuiz') }}" class="btn">Admin: hand-pick questions to test</a></p>
+        {% endif %}
+
         <div class="quiz-layout">
             <!-- Left: nested tags -->
             <section class="quiz-card quiz-tags">
@@ -21,10 +25,6 @@
                     <p id="tag-status" style="margin: 6px 0; font-size: 14px;"></p>
 
                 <div class="quiz-tag-actions">
-                    <label>
-                        <input type="checkbox" id="all-tags-parent">
-                        All Tags
-                    </label>
 
                     <div class="quiz-action-buttons">
                         <button type="button" id="select-all-tags">
@@ -88,6 +88,7 @@
 
     <script id="database-tags" type="application/json">{{ tags | tojson }}</script>
     <script>
+        const groupEls = []; // filled in when the category groups are built: {li, details, rows}
         function toggleCheckboxes(query, visibleOnly) {
             var checkboxes = Array.from(document.querySelectorAll(query));
             if (visibleOnly) {
@@ -110,16 +111,30 @@
         }
 
         function filterTags() {
-            // "python, loops" = ["python", "loops"], a tag matches if it contains any term
             const terms = searchBox.value.toLowerCase().split(",").map(t => t.trim()).filter(Boolean);
+            const searching = terms.length > 0;
             let shown = 0;
 
             tagItems.forEach(li => {
                 const text = li.textContent.toLowerCase();
-                const match = terms.length === 0 || terms.some(t => text.includes(t));
+                const match = !searching || terms.some(t => text.includes(t));
                 li.style.display = match ? "" : "none";
                 if (match) shown++;
             });
+
+            groupEls.forEach(g => {
+                const anyMatch = g.rows.some(r => r.style.display !== "none");
+                g.li.style.display = anyMatch ? "" : "none";   // hide categories with no matches
+
+                if (searching) {
+                    if (g.prevOpen === undefined) g.prevOpen = g.details.open; // remember the user's state
+                    g.details.open = anyMatch;                                 // reveal matches
+                } else if (g.prevOpen !== undefined) {
+                    g.details.open = g.prevOpen;                               // restore when search is cleared
+                    g.prevOpen = undefined;
+                }
+            });
+
             updateStatus(shown);
         }
 
@@ -130,60 +145,27 @@
             if (e.key === "Enter") e.preventDefault();
         });
 
-        filterTags();
-
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="questionTypes"]');
             });
             document.getElementById('select-all-tags').addEventListener('click', function () {
                 toggleCheckboxes('input[name="tagSelection"]', true);
+                updateAllGroups();
             });
             document.getElementById('select-all-languages').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="languageSelection"]');
             });
 
-            toggleCheckboxes('input[name="questionTypes"]');
-            toggleCheckboxes('input[name="tagSelection"]');
-            toggleCheckboxes('input[name="languageSelection"]');
-
-        });
-
-        const parentTag = document.getElementById("all-tags-parent");
-        const childTags = [
-            ...document.querySelectorAll('input[name="tagSelection"]')
-        ];
-
-        // update the parent tag checkbox based on the initial state of the child tags
-        function updateParentTag() {
-            const selected = childTags.filter(tag => tag.checked).length;
-
-            parentTag.checked =
-                childTags.length > 0 && selected === childTags.length;
-
-            parentTag.indeterminate =
-                selected > 0 && selected < childTags.length;
-        }
-
-        // select or clear every tag based on the parent checkbox
-        parentTag.addEventListener("change", function () {
-            childTags.forEach(tag => {
-                tag.checked = parentTag.checked;
+            document.querySelectorAll(
+                'input[name="questionTypes"], input[name="tagSelection"], input[name="languageSelection"]'
+            ).forEach(checkbox => {
+                checkbox.checked = true;
             });
 
-            updateParentTag();
+            updateAllGroups();
+
         });
-
-        // refresh all tags when any child tag changes
-        childTags.forEach(tag => {
-            tag.addEventListener("change", updateParentTag);
-        });
-
-        // refresh all tags after the toggle all button is clicked
-        document.getElementById("select-all-tags")
-            .addEventListener("click", updateParentTag);
-
-        updateParentTag();
 
         const tagList = document.getElementById("tagSelection");
 
@@ -249,6 +231,8 @@
             groupRow.appendChild(details);
             tagList.appendChild(groupRow);
 
+            groupEls.push({ li: groupRow, details, rows: matchingRows });
+
             const nestedCheckboxes = [
                 ...nestedList.querySelectorAll('input[name="tagSelection"]')
             ];
@@ -271,7 +255,6 @@
                 if (groupCheckbox.checked) details.open = true;
 
                 updateGroupCheckbox();
-                updateParentTag();
             });
 
             // refresh the category checkbox when any of its child(individual) tags change
@@ -288,12 +271,7 @@
             groupControls.forEach(updateGroup => updateGroup());
         }
 
-        parentTag.addEventListener("change", updateAllGroups);
-
-        document.getElementById("select-all-tags")
-            .addEventListener("click", updateAllGroups);
-
-        // ********** Add Search Feature ***********
+        filterTags();
     </script>
 </div>
 
