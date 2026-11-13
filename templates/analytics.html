@@ -1,0 +1,97 @@
+<!--THIS FILE IS COMPLETELY AI'D JUST FOR EASE OF VISUALIZATION CAN BE CHANGED LATER-->
+
+{% extends "base.html" %} {% block body %}
+{% macro barList(rows) %}
+  {% for r in rows %}
+    <div class="bar-row">
+      <span class="bar-label">{{ r.label }}</span>
+      <span class="bar-label" title="{{ r.label }}">{{ r.label }}</span>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ r.pct }}%"></div></div>
+      <span class="bar-value">{{ r.text }}</span>
+    </div>
+  {% else %}
+    <p>No data yet.</p>
+  {% endfor %}
+{% endmacro %}
+
+<style>
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { border: 1px solid currentColor; border-radius: 10px; padding: 12px 16px; }
+  .stat-card .num { font-size: 1.8rem; font-weight: bold; }
+  .stat-card .sub { font-size: 0.85rem; opacity: 0.8; }
+  .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+  .panel { border: 1px solid currentColor; border-radius: 10px; padding: 8px 16px 12px; }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 110px; gap: 10px; align-items: center; margin: 6px 0; }
+  .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { background: rgba(128,128,128,0.25); border-radius: 4px; height: 14px; }
+  .bar-fill { background: #627277; height: 100%; border-radius: 4px; }
+  .bar-value { font-size: 0.9rem; text-align: right; }
+  .daily { display: flex; align-items: flex-end; gap: 3px; height: 120px; margin-top: 12px; }
+  .daily-col { flex: 1; background: #627277; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .note { font-size: 0.85rem; opacity: 0.8; }
+</style>
+
+<div class="account-page">
+  <h1>Site analytics</h1>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="num">{{ stats.totalUsers }}</div>Users
+      <div class="sub">+{{ stats.newUsers7 }} this week · +{{ stats.newUsers30 }} this month</div></div>
+    <div class="stat-card"><div class="num">{{ stats.activeUsers30 }}</div>Active users
+      <div class="sub">took a quiz in the last 30 days</div></div>
+    <div class="stat-card"><div class="num">{{ stats.totalQuizzes }}</div>Quizzes completed
+      <div class="sub">{{ stats.quizzes7 }} this week · {{ stats.quizzes30 }} this month</div></div>
+    <div class="stat-card"><div class="num">{{ stats.avgQuestions }}</div>Avg questions per quiz
+      <div class="sub">{{ stats.uniqueSeeds }} unique seeds</div></div>
+    <div class="stat-card"><div class="num">{{ stats.fullySaved }}</div>Fully saved quizzes
+      <div class="sub">{{ stats.softDeleted }} seeds removed by users</div></div>
+    <div class="stat-card">
+      <div class="num">{% if overallAccuracy is not none %}{{ overallAccuracy }}%{% else %}n/a{% endif %}</div>Overall accuracy
+      <div class="sub">across {{ totalAnswers }} saved answers</div></div>
+    <div class="stat-card"><div class="num">{{ stats.activeQuestions }}</div>Active question templates</div>
+    <div class="stat-card"><div class="num">{{ totalFlags }}</div>Flagged as confusing
+      <div class="sub">across all users' saved questions</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Quizzes per day (last 30 days)</h2>
+    <div class="daily">
+      {% for d in daily %}
+        <div class="daily-col" style="height: {{ d.pct }}%" title="{{ d.label }}: {{ d.value }}"></div>
+      {% endfor %}
+    </div>
+    <p class="note">Hover a bar for the date and count.</p>
+  </div>
+
+  <h2>What users study</h2>
+  <div class="panel-grid">
+    <div class="panel"><h3>Top tags</h3>{{ barList(tagCounts) }}</div>
+    <div class="panel"><h3>Question types</h3>{{ barList(typeCounts) }}</div>
+    <div class="panel"><h3>Languages</h3>{{ barList(langCounts) }}</div>
+    <div class="panel"><h3>Question bank (active)</h3>{{ barList(bankByType) }}</div>
+  </div>
+
+  <h2>Performance</h2>
+  <div class="panel-grid">
+    <div class="panel"><h3>Accuracy by question type</h3>{{ barList(accuracyByType) }}</div>
+    <div class="panel"><h3>Accuracy by language</h3>{{ barList(accuracyByLang) }}</div>
+    <div class="panel" style="margin-top: 16px;">
+    <h3>Hardest questions</h3>
+    {{ barList(hardest) }}
+    <p class="note">Ranked by miss rate among questions answered at least {{ minAttempts }} times.
+        Based on {{ trackedAnswers }} saved answers that have a tracked question id.</p>
+    </div>
+  </div>
+  <p class="note">Accuracy only covers fully saved quizzes, since those are the only ones whose answers are stored. Treat it as a sample, not every quiz taken.</p>
+
+  <div class="panel" style="margin-top: 16px;">
+    <h3>Most flagged as confusing</h3>
+    {{ barList(mostConfusing) }}
+    <p class="note">Counted by question template. Unlike accuracy, this includes flags from quizzes that
+    weren't fully saved. Rows from before ids were tracked are skipped.</p>
+  </div>
+
+  <h2>Most active users</h2>
+  <div class="panel">{{ barList(topUsers) }}</div>
+</div>
+{% endblock %}

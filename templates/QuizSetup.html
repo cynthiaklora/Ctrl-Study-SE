@@ -7,6 +7,10 @@
     <form method="post">
         {{ form.hidden_tag() }}
 
+        {% if current_user.role == "admin" %}
+        <p style="text-align: center;"><a href="{{ url_for('customQuiz') }}" class="btn">Admin: hand-pick questions to test</a></p>
+        {% endif %}
+
         <div class="quiz-layout">
             <!-- Left: nested tags -->
             <section class="quiz-card quiz-tags">
@@ -21,10 +25,6 @@
                     <p id="tag-status" style="margin: 6px 0; font-size: 14px;"></p>
 
                 <div class="quiz-tag-actions">
-                    <label>
-                        <input type="checkbox" id="all-tags-parent">
-                        All Tags
-                    </label>
 
                     <div class="quiz-action-buttons">
                     </div>
@@ -146,47 +146,23 @@
             document.getElementById('select-all-questionTypes').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="questionTypes"]');
             });
+            document.getElementById('select-all-tags').addEventListener('click', function () {
+                toggleCheckboxes('input[name="tagSelection"]', true);
+                updateAllGroups();
+            });
             document.getElementById('select-all-languages').addEventListener('click', function (event) {
                 toggleCheckboxes('input[name="languageSelection"]');
             });
 
-            toggleCheckboxes('input[name="questionTypes"]');
-            toggleCheckboxes('input[name="tagSelection"]');
-            toggleCheckboxes('input[name="languageSelection"]');
-
-        });
-
-        const parentTag = document.getElementById("all-tags-parent");
-        const childTags = [
-            ...document.querySelectorAll('input[name="tagSelection"]')
-        ];
-
-        // update the parent tag checkbox based on the initial state of the child tags
-        function updateParentTag() {
-            const selected = childTags.filter(tag => tag.checked).length;
-
-            parentTag.checked =
-                childTags.length > 0 && selected === childTags.length;
-
-            parentTag.indeterminate =
-                selected > 0 && selected < childTags.length;
-        }
-
-        // select or clear every tag based on the parent checkbox
-        parentTag.addEventListener("change", function () {
-            childTags.forEach(tag => {
-                tag.checked = parentTag.checked;
+            document.querySelectorAll(
+                'input[name="questionTypes"], input[name="tagSelection"], input[name="languageSelection"]'
+            ).forEach(checkbox => {
+                checkbox.checked = true;
             });
 
-            updateParentTag();
-        });
+            updateAllGroups();
 
-        // refresh all tags when any child tag changes
-        childTags.forEach(tag => {
-            tag.addEventListener("change", updateParentTag);
         });
-
-        updateParentTag();
 
         const tagList = document.getElementById("tagSelection");
 
@@ -276,7 +252,6 @@
                 if (groupCheckbox.checked) details.open = true;
 
                 updateGroupCheckbox();
-                updateParentTag();
             });
 
             // refresh the category checkbox when any of its child(individual) tags change
@@ -292,8 +267,6 @@
         function updateAllGroups() {
             groupControls.forEach(updateGroup => updateGroup());
         }
-
-        parentTag.addEventListener("change", updateAllGroups);
 
         filterTags();
     </script>

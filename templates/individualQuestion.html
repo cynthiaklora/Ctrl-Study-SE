@@ -14,11 +14,11 @@
     <h1>Question {{ currentQuestion }}</h1>
     <h3>{{ form.language }}</h3>
     <p><b>{{ form.prompt }}</b></p>
-    {% if not form.inline_blanks %}
-    <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
-    {% endif %}
     <form style="tab-size: 4" action="" method="post" novalidate>
         {{ form.hidden_tag() }}
+        <fieldset {{ "disabled" if showingAnswer }}>
+            <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
+        </fieldset>
         <p><b>{{ form.instructions }}</b></p>
         <fieldset {{ "disabled" if showingAnswer }}>
             {% if form.inline_blanks %}
@@ -75,6 +75,8 @@
         <button type="submit" name="action" value="next">Next</button>
         {% else %}
         <button type="submit" name="action" value="submit" id="submit-btn" disabled>Submit</button>
+        <!--Currently acts as a second submit button and just marks is_confusing in db but could be change functionally-->
+        <button type="submit" name="action" value="confusing" id="confusing-btn" disabled>Confusing</button>
         {% endif %}
     </form>
 </div>
@@ -93,29 +95,34 @@
 
 <script>
     const submitBtn = document.getElementById('submit-btn');
-    const fieldset = submitBtn?.closest('form').querySelector('fieldset');
+    const confusingBtn = document.getElementById('confusing-btn');
+    const answerForm = submitBtn?.closest('form');
 
     // grey out the submit button if no data entered
     function checkAnswer() {
         if (!submitBtn) return;
 
-        const inputs = fieldset.querySelectorAll('input, textarea, select');
-        let answered = false;
+        const inputs = answerForm.querySelectorAll(
+            'input:not([type=hidden]):not([type=submit]):not([type=button]), textarea, select'
+        );
+        const texts = [...inputs].filter(i => !['checkbox', 'radio'].includes(i.type));
+        const choices = [...inputs].filter(i => ['checkbox', 'radio'].includes(i.type));
 
-        for (const input of inputs) {
-            if (input.type === 'checkbox' || input.type === 'radio') {
-                if (input.checked) { answered = true; break; }
-            } else if (input.value.trim() !== '') {
-                answered = true; break;
-            }
+        let answered;
+        if (choices.length > 0) {
+            answered = choices.some(i => i.checked);
+        } else {
+            // fill in the blank: every blank must be filled
+            answered = texts.length > 0 && texts.every(i => i.value.trim() !== '');
         }
 
         submitBtn.disabled = !answered;
+        if (confusingBtn) confusingBtn.disabled = !answered;
     }
 
-    if (fieldset) {
-        fieldset.addEventListener('input', checkAnswer);
-        fieldset.addEventListener('change', checkAnswer);
+    if (answerForm) {
+        answerForm.addEventListener('input', checkAnswer);
+        answerForm.addEventListener('change', checkAnswer);
         checkAnswer();
     }
 
