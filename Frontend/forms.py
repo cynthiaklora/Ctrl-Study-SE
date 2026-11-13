@@ -41,6 +41,19 @@ class SetupQuizForm(FlaskForm):
         self.tagSelection.choices = [(id, name) for (id,name) in tags]
         self.languageSelection.choices = [(l, l) for l in languages]
 
+class CodeSandboxForm(FlaskForm):
+    language = RadioField("Language", validators=[InputRequired()])
+    code = TextAreaField("Code", validators=[DataRequired(), Length(max=20000)])
+    submit = SubmitField("Run")
+
+    def __init__(self, languages: list[str], *args, **kwargs):
+        super(CodeSandboxForm, self).__init__(*args, **kwargs)
+        self.language.choices = [(l, l) for l in languages]
+
+        # preselect the first language on the initial page load only
+        if self.language.data is None and not self.is_submitted():
+            self.language.data = languages[0]
+
 # ADMIN TESTING: lets an admin hand-pick specific questions from the pool
 class CustomQuizForm(FlaskForm):
     questionIds = MultiCheckboxField("Questions", validators=[DataRequired(message="Select at least one question.")])
@@ -186,6 +199,37 @@ class ShortAnswerQuestionForm(QuestionForm[TextAreaField]):
         self.feedback = feedback
         self.language = language
 
+class ProgrammingQuestionForm(QuestionForm[TextAreaField]):
+    prompt: str
+    question: str
+    correct: list[str]
+    feedback: str
+    answer: TextAreaField = TextAreaField("Code", validators=[DataRequired()], default=None)
+    instructions: str = "Write your code below."
+    submit = SubmitField("Submit")
+
+    def __init__(
+        self,
+        prompt: str,
+        question: str,
+        correct: list[str],
+        language: str,
+        feedback: str,
+        starterCode: str | None = None,
+        requirements: str | None = None,
+        *args,
+        **kwargs,
+    ):
+        super(ProgrammingQuestionForm, self).__init__(*args, **kwargs)
+        self.prompt = prompt
+        self.question = question
+        self.correct = correct
+        self.feedback = feedback
+        self.language = language
+        self.starterCode = starterCode
+        self.requirements = requirements
+        if starterCode and not self.is_submitted():   # only prefill on first load
+            self.answer.data = starterCode
 
 # Renders nothing: the blank inputs are drawn inside the code block by FillBlankQuestionForm.format_html
 class _NoWidget:

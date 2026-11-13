@@ -1,0 +1,3 @@
+ctrlstudy.duckdns.org {
+    reverse_proxy controller:5000
+}

@@ -12,13 +12,13 @@ from __future__ import annotations
 from flask import Flask, render_template, session, request, jsonify                        # Flask imports provide routing, form access, session state, and redirects
 
 from Frontend import QuestionFetch
-from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm, LoginForm, RegisterForm, CustomQuizForm
+from Frontend.forms import RadioQuestionForm, SetupQuizForm, QuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm, ProgrammingQuestionForm, LoginForm, RegisterForm, CodeSandboxForm, CustomQuizForm
 
 from functools import wraps
 from datetime import timedelta, timezone, datetime
 from flask_session import Session
 
-from flask import redirect, url_for, abort
+from flask import Flask, send_from_directory, request, redirect, url_for, abort
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user, UserMixin
 from flask_wtf import FlaskForm
 
@@ -27,12 +27,17 @@ from collections import Counter
 import supabase_client
 from supabase_client import ctrlDB, makeOauthClient
 import template_builder
+import code_runner
 
 from urllib.parse import urlencode
 
 from Frontend.QuestionFetch import QuestionContainer, makeSeed, parseSeed
 
 import os
+
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 import shutil
 cache_path = "./flask_session_cache"
@@ -62,11 +67,36 @@ app.config["SESSION_PERMANENT"] = False  # Sessions expire when the browser is c
 app.config["SESSION_TYPE"] = "filesystem"  # Store session data in files
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=6)
 
+# trust one proxy (caddy)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200/hour"],
+    storage_uri="memory://",
+)
+
 Session(app)
 
 login_manager = LoginManager()
 login_manager.login_view = "login"
 login_manager.init_app(app)
+
+DOCS_DIR = os.path.join(app.root_path, "static", "documentation")
+
+@app.route("/docs/")
+def docs_index():
+    return send_from_directory(DOCS_DIR, "index.html")
+
+@app.route("/docs/<path:path>")
+def docs(path):
+    full = os.path.join(DOCS_DIR, path)
+    if os.path.isdir(full):
+        if not request.path.endswith("/"):
+            return redirect(request.path + "/", code=301)
+        path = os.path.join(path, "index.html")
+    return send_from_directory(DOCS_DIR, path)
 
 # proper home page
 @app.route("/", methods=["GET"])
@@ -117,11 +147,11 @@ def login():
         password = str(form.password.data or "")
 
         account = ctrlDB.table("users").select("id, username, role").eq("username", username).execute()
-        
+
         if not account.data:
             error = "Invalid username."
             return render_template("Login.html", title="Ctrl-Study: Login", form=form, error=error)
-        
+
         supabaseEmail = f"{username}@users.table"
 
         try:
@@ -175,7 +205,7 @@ def register():
         except Exception:
             user = None
             error = "Registration failed. Please try again."
-    
+
         if user is not None:
             try:
                 ctrlDB.table("users").insert({
@@ -194,7 +224,7 @@ def register():
 def uniqueUsername(base):
     """
     This is just for in the very rare case that someone has the same generated username as someone else
-    For example, if someone with user_name bob from github signs in, and then someone with 
+    For example, if someone with user_name bob from github signs in, and then someone with
     full_name bob from google signs in, they would have the same generated username, so
     this checks and corrects that issue.
     """
@@ -547,8 +577,8 @@ def quizComplete():
     for index, question in enumerate(session["quizQuestions"]):
         form = QuestionFetch.getQuestionForm(question, label=f"Answers{index}")
         data: list = session["quizGivenAnswers"].get(index, [])
-        if isinstance(form, RadioQuestionForm) or isinstance(form, ShortAnswerQuestionForm):
-            form.answer.data = data[0]
+        if isinstance(form, (RadioQuestionForm, ShortAnswerQuestionForm, ProgrammingQuestionForm)):
+            form.answer.data = data[0] if data else ""
         else:
             form.answer.data = data
         forms.append(form)
@@ -581,7 +611,9 @@ def quizComplete():
         error=error
     )
 
+# rate limit requests at the /question endpoint to prevent spam (particularly for code run spamming)
 @app.route("/question", methods=["GET", "POST"])
+@limiter.limit("40/minute")
 def question():
     if "quizQuestions" not in session or session["quizQuestions"] is None:
         print("User tried to use quiz question page without questions in session")
@@ -611,19 +643,48 @@ def question():
     question = session["quizQuestions"][session["progress"]]
     form = QuestionFetch.getQuestionForm(question)
 
+    # programming question handling
+    runError = None         # set if the sandbox couldn't run (busy / docker down)
+    requirementErrors = []  # unmet requirement messages
+    attemptResult = None    # run output from a failed attempt, so the retry page can show it
+
     if action in ("submit", "confusing") and session["SingleQuestionState"] == "NewQuestion" and form.validate_on_submit():
         correct = form.correct
         answers = form.answer.data
         if not isinstance(answers, list):
             answers = [answers]
         answers = [answer.replace('\r\n', '\n') for answer in answers]
-        if isinstance(form, FillBlankQuestionForm):
+
+        graded = True
+        if question.type == "programming":
+            try:
+                unmet = code_runner.checkRequirements(question.language, answers[0], question.requirements)
+                if unmet:
+                    requirementErrors = unmet
+                    graded = False
+                else:
+                    run = code_runner.runCode(question.language, answers[0])
+                    if run["stderr"].strip() or run["timedOut"]:
+                        attemptResult = run     # shown on the retry page, not saved to the session
+                        graded = False
+                    else:
+                        got = [l.strip() for l in run["stdout"].splitlines() if l.strip()]
+                        expected = [c.strip() for c in correct]
+                        isCorrect = (run["exitCode"] == 0 and got == expected)
+                        session.setdefault("quizRunResults", {})[session["progress"]] = run
+            except code_runner.RunnerError as e:
+                runError = str(e)
+                graded = False
+        # probably can be compared on question.type but don't want to break the merge
+        elif isinstance(form, FillBlankQuestionForm):
             isCorrect = form.grade(answers)     # blanks are graded in order, not as a set
         else:
             isCorrect = set(answers) == set(correct)
-        session["quizGivenAnswers"][session["progress"]] = answers
-        session["correctness"][session["progress"]] = isCorrect
-        session["SingleQuestionState"] = "Answered"
+
+        if graded: # not sure how it will affect???
+            session["quizGivenAnswers"][session["progress"]] = answers
+            session["correctness"][session["progress"]] = isCorrect
+            session["SingleQuestionState"] = "Answered"
 
         if action == "confusing":
             flagged = session.setdefault("confusingQuestions", [])
@@ -634,6 +695,14 @@ def question():
 
     if session["SingleQuestionState"] == "Answered":
         isCorrect = session["correctness"].get(session["progress"], False)
+
+        # redisplay the submitted code
+        if question.type == "programming":
+            form.answer.data = session["quizGivenAnswers"].get(session["progress"], [""])[0]
+
+        # only pass run output when the question is answered
+        runResult = session.get("quizRunResults", {}).get(session["progress"])
+
         return render_template(
             "individualQuestion.html",
             title="Question",
@@ -642,6 +711,10 @@ def question():
             showingAnswer=True,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            # more flags for programming question rendering behavior
+            runResult=runResult,
+            error=runError,
+            isProgramming=(question.type == "programming"),
         )
     else:
         return render_template(
@@ -652,6 +725,11 @@ def question():
             showingAnswer=False,
             currentQuestion=session["progress"] + 1,
             totalQuestions=len(session["quizQuestions"]),
+            # more flags for programming question rendering behavior
+            runResult=attemptResult,
+            requirementErrors=requirementErrors,
+            error=runError,
+            isProgramming=(question.type == "programming"),
         )
 
 @app.route("/quiz", methods=["GET", "POST"])
@@ -662,13 +740,14 @@ def quiz():
         "multiple_select",
         #"short_answer", until we have good ones
         "true_false",
-        "fill_in_the_blank"
+        "fill_in_the_blank",
+        "programming",
     ]
     languages = ["Python", "C++"]
     ts = [(tag["id"], tag["name"]) for tag in tags]
     form = SetupQuizForm(types=types, tags=ts, languages=languages)
     for key in ["quizQuestions", "SingleQuestionState", "progress", "quizGivenAnswers", "correctness",
-                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "customQuiz", "confusingQuestions", "confusingSaved"]:
+                "seed", "quizParameters", "quizID", "quizQuestionsSaved", "quizRunResults", "customQuiz", "confusingQuestions", "confusingSaved"]:
         session.pop(key, None)  # None default avoids KeyError check
 
     if len(request.args.keys()) > 0:
@@ -768,6 +847,36 @@ def saveQuiz():
     session["quizQuestionsSaved"] = True
     session.modified = True
     return jsonify(status="success", message="Quiz saved to account.")
+
+@app.route("/code-sandbox", methods=["GET", "POST"])
+@login_required
+def codeSandbox():
+    if getattr(current_user, "role", None) != "admin":
+        return redirect(url_for("home"))
+
+    form = CodeSandboxForm(languages=list(code_runner.LANGUAGES))
+    result = None
+    error = None
+
+    if request.method == "POST" and form.validate_on_submit():
+        code = str(form.code.data or "").replace("\r\n", "\n")
+        try:
+            result = code_runner.runCode(str(form.language.data), code)
+        except code_runner.RunnerError as e:
+            error = str(e)
+
+    return render_template(
+        "codeSandbox.html",
+        title="Ctrl-Study: Code Sandbox",
+        form=form,
+        result=result,
+        error=error,
+    )
+
+# shows user ip, ensure that reverse proxy is working
+@app.route("/whoami")
+def whoami():
+    return {"ip": request.remote_addr, "scheme": request.scheme}
 
 @app.route("/quiz/<int:quizId>/delete", methods=["POST"])
 @login_required

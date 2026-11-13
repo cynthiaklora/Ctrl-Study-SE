@@ -21,13 +21,49 @@
         </fieldset>
         <p><b>{{ form.instructions }}</b></p>
         <fieldset {{ "disabled" if showingAnswer }}>
+            {% if form.inline_blanks %}
+            {# fill in the blank: the inputs live inside the code block, so it has to sit inside the form/fieldset #}
+            <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
+            {% endif %}
+            {% if isProgramming %}
+            {{ form.answer(id="code-editor", rows=18, spellcheck="false", autocomplete="off", autocapitalize="off",
+                wrap="off",
+                style="width:100%; box-sizing:border-box; font-family:monospace; white-space:pre; overflow:auto; tab-size:4; resize:vertical; min-height:20em;") }}
+            {% else %}
             {{ form.answer(style="list-style:none; white-space: pre-line;", class="answer") }}
+            {% endif %}
         </fieldset>
+        {% if error %}
+        <p style="color: orange;"><b>{{ error }}</b></p>
+        {% endif %}
+
+        {% if requirementErrors %}
+        <p style="color: orange;"><b>Your code doesn't meet these requirements:</b></p>
+        <ul>{% for r in requirementErrors %}<li>{{ r }}</li>{% endfor %}</ul>
+        {% endif %}
+
+        {% if runResult %}
+            {% if not showingAnswer %}
+            <p style="color: orange;"><b>Your program hit an error. Fix it and submit again.</b></p>
+            {% endif %}
+            <p><i>Your program's output:</i></p>
+            {% if runResult.timedOut %}<p style="color: red;">Your program timed out.</p>{% endif %}
+            {% if runResult.stdout %}<pre>{{ runResult.stdout }}</pre>{% endif %}
+            {% if runResult.stderr %}<p><i>Errors:</i></p><pre style="color: red;">{{ runResult.stderr }}</pre>{% endif %}
+        {% endif %}
         <h3 style="color: {{ " green" if status=="Correct" else "red" if status=="Incorrect" }}">{{ status }}</h3>
         {% if showingAnswer %}
         <div class="slight_clear_bordering">
+            {% if runResult %}
+            <p><i>Your program's output:</i></p>
+            {% if runResult.timedOut %}
+            <p style="color: orange;">Your program timed out.</p>
+            {% endif %}
+            {% if runResult.stdout %}<pre>{{ runResult.stdout }}</pre>{% endif %}
+            {% if runResult.stderr %}<p><i>Errors:</i></p><pre style="color: orange;">{{ runResult.stderr }}</pre>{% endif %}
+            {% endif %}
             {% if status == "Incorrect" %}
-            <p><i>The correct answer was:</i></p>
+            <p><i>{{ "Expected output:" if isProgramming else "The correct answer was:" }}</i></p>
             <ul>
                 {% for val in form.getCorrect() %}
                 <li style="white-space: pre-line;">{{ val }}</li>
@@ -104,5 +140,30 @@
             });
         });
     });
+
+    // tab inserts 4 spaces in the code editor instead of moving focus
+    const editor = document.getElementById('code-editor');
+    if (editor) {
+        editor.addEventListener('keydown', function (e) {
+            if (e.key !== 'Tab') return;
+            e.preventDefault();
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const value = editor.value;
+
+            if (e.shiftKey) {
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const match = value.slice(lineStart).match(/^ {1,4}/);
+                if (match) {
+                    editor.value = value.slice(0, lineStart) + value.slice(lineStart + match[0].length);
+                    editor.selectionStart = editor.selectionEnd = Math.max(lineStart, start - match[0].length);
+                }
+            } else {
+                editor.value = value.slice(0, start) + '    ' + value.slice(end);
+                editor.selectionStart = editor.selectionEnd = start + 4;
+            }
+            editor.dispatchEvent(new Event('input', { bubbles: true }));  // keeps checkAnswer() in sync
+        });
+    }
 </script>
 {% endblock %}

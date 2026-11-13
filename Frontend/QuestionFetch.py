@@ -2,7 +2,7 @@ from Frontend.forms import QuestionForm
 import random
 from random import choice
 from typing import Any, cast
-from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm
+from Frontend.forms import RadioQuestionForm, CheckboxQuestionForm, ShortAnswerQuestionForm, FillBlankQuestionForm, ProgrammingQuestionForm
 from parser_engine import generateQuestion
 # from flask import session
 from dataclasses import dataclass
@@ -23,6 +23,9 @@ def parseSeed(raw) -> int:
     except ValueError:
         return makeSeed() # this just ignores any input if the above part fails, could make this return an error message if needed
 
+# would probably be beneficial to have QuestionContainer as a parent class
+# and creating separate child classes based on specific question requirements
+# i.e. programming questions don't need incorrect options and other questions don't need starterCode
 @dataclass
 class QuestionContainer:
     prompt: str
@@ -33,9 +36,10 @@ class QuestionContainer:
     type: str
     language: str
     title: str
-    id: int | None = None
+    starterCode: str | None
+    requirements: list[dict] | None
 
-    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, id: int | None = None):
+    def __init__(self, prompt: str, question: str, correct: list[str], feedback: str, answer: list[str], type: str, language: str, title: str, id: int | None = None, starterCode: str | None = None, requirements: list[dict] | None = None):
         self.prompt = prompt
         self.question = question
         self.correct = correct
@@ -44,6 +48,8 @@ class QuestionContainer:
         self.type = type
         self.language = language
         self.title = title
+        self.starterCode = starterCode
+        self.requirements = requirements
         self.id = id
 
     def __hash__(self):
@@ -120,7 +126,9 @@ def _buildQuestions(q: list[dict[str, Any]], seed: int) -> list[QuestionContaine
             type=gq["type"],
             language=qu["language"],
             title=qu["title"],
-            id=qu["id"]
+            id=qu["id"],
+            starterCode=gq.get("starterCode"),
+            requirements=gq.get("requirements"),
         ))
 
     return questions
@@ -194,6 +202,17 @@ def getQuestionForm(question: QuestionContainer, label: str = "Answers") -> Ques
                 correct=question.correct,
                 feedback=question.feedback,
                 language=question.language,
+                prefix=label
+            )
+        case "programming":
+            form = ProgrammingQuestionForm(
+                prompt=question.prompt,
+                question=question.question,
+                correct=question.correct,
+                feedback=question.feedback,
+                language=question.language,
+                starterCode=question.starterCode,
+                requirements=question.requirements,
                 prefix=label
             )
         case _:
