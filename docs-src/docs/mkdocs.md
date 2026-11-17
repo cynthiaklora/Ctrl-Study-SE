@@ -1,6 +1,6 @@
 # MkDocs
 
-This documentation page was generated using the `mkdocs` package, which allows the generation of these pages using only `.md` files which is extremely useful.
+This documentation page was generated using the `mkdocs` package, which allows the generation of these pages using only `.md` files which is extremely useful. More information about mkdocs can be found [here](https://www.mkdocs.org/user-guide/).
 
 ## File Layout
     docs-src/
