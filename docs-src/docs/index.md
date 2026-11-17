@@ -32,15 +32,15 @@ The frontend is composed of Jinja Templates defined at `templates/`. Jinja is re
 
 ### Templating
 
-Questions use a templating system, which allow variables to be randomized and persist between question and answer options. Read more [here](./Features/templating.md).
+Questions use a templating system, which allow variables to be randomized and persist between question and answer options. Read more [here](./features/templating.md).
 
 ### Code Execution
 
-Arbitrary code execution functionality supports programming style questions that allow users to submit any valid code that will be executed safely on the server side. Read more [here](./Features/code-execution.md).
+Arbitrary code execution functionality supports programming style questions that allow users to submit any valid code that will be executed safely on the server side. Read more [here](./features/code-execution.md).
 
 ### Database
 
-User information persists between sessions using an externally hosted Supabase database. Public interfaces to communicate between the application and the database are defined within `supabase_client.py`. Read more [here](./Features/templating.md).
+User information persists between sessions using an externally hosted Supabase database. Public interfaces to communicate between the application and the database are defined within `supabase_client.py`. Read more [here](./features/templating.md).
 
 ## Running Locally
 

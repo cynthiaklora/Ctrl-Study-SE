@@ -1,2 +1,10 @@
-site_name: My Docs
+site_name: Ctrl+Study Documentation
 site_url: https://ctrlstudy.duckdns.org/docs/
+
+nav:
+  - Welcome: index.md
+  - Features:
+      - Templating: features/templating.md
+      - Database: features/database.md
+      - Code Execution: features/code-execution.md
+  - MkDocs: mkdocs.md
