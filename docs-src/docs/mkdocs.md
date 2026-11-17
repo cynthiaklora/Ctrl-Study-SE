@@ -19,3 +19,7 @@ The `mkdocs.yml` file defines a few things, but most importantly:
 If you want to add pages or change orders, paths of files, etc, manipulate the options in `nav`.
 
 To learn markdown syntax, use the current documentation files or reference [this nice guide](https://www.markdownguide.org/basic-syntax/).
+
+Once any changes are made, mkdocs needs to create the static pages from the markdown documents. This process is automated if [running with Docker](./index.md#running-via-docker-commands), but if [running with Python](./index.md#running-via-python-commands), run:
+
+`mkdocs build -f docs-src/mkdocs.yml -d ../static/documentation`
