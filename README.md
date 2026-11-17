@@ -1,3 +1,7 @@
+# README Deprecated
+
+Please see the documentation source files located at `docs-src/docs/` or click [here](docs-src/docs/index.md).
+
 # CTRL+STUDY
 
 Flask app for building and previewing template-based questions.
@@ -36,7 +40,7 @@ Once it's registerd, login via `ssh -i <path-to-private-ssh-key> deploy@<public-
 
 !! Reminder to set up a credentials manager to securely share sudo password and ctrlstudy email account credentials 
 
-Software Engineering Group Members:
+## Fork Authors:
 
 Jackson Reed
 
