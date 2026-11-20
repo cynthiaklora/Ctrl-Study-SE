@@ -16,9 +16,11 @@
     <p><b>{{ form.prompt }}</b></p>
     <form style="tab-size: 4" action="" method="post" novalidate>
         {{ form.hidden_tag() }}
+        {% if not form.inline_blanks %}
         <fieldset {{ "disabled" if showingAnswer }}>
             <div style="width: fit-content; tab-size: 4">{{ form.format_html()|safe }}</div>
         </fieldset>
+        {% endif %}
         <p><b>{{ form.instructions }}</b></p>
         <fieldset {{ "disabled" if showingAnswer }}>
             {% if form.inline_blanks %}
